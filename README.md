@@ -358,12 +358,19 @@ Tests cover protobuf framing, pairing and remote messages, state isolation, Wake
 
 When reporting protocol behavior, include the manufacturer, model, firmware version, and sanitized dashboard diagnostics.
 
-## License
+## Author
 
 <p align="center">
-  <a href="LICENSE">MIT License</a> © 2026 <a href="https://github.com/tharunpkarun">Tharun P Karun</a><br>
+  <strong>Tharun P Karun</strong><br>
   <a href="https://www.tharunpkarun.com">Website</a> ·
-  <a href="https://github.com/tharunpkarun">GitHub profile</a> ·
+  <a href="https://github.com/tharunpkarun">GitHub</a>
+</p>
+
+## License
+
+This project is available under the [MIT License](LICENSE). © 2026 Tharun P Karun.
+
+<p align="center">
   <a href="https://www.npmjs.com/package/homebridge-androidtv-ultimate">npm</a> ·
   <a href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/issues">Issues</a> ·
   <a href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/pulls">Pull requests</a>
