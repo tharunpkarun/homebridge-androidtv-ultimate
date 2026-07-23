@@ -360,10 +360,43 @@ When reporting protocol behavior, include the manufacturer, model, firmware vers
 
 ## Author
 
+<table>
+  <tr>
+    <td width="150" align="center" valign="top">
+      <a href="https://www.tharunpkarun.com">
+        <img src="https://avatars.githubusercontent.com/u/38854729?v=4" width="120" alt="Tharun P Karun">
+      </a>
+      <br>
+      <a href="https://github.com/tharunpkarun"><code>@tharunpkarun</code></a>
+    </td>
+    <td valign="top">
+      <h3>Tharun P Karun</h3>
+      <p><strong>Founding Engineer &amp; AI Architect · Engineering Leader · Systems Builder</strong></p>
+      <p>
+        I build AI-first products and scalable, human-centered systems. My work spans engineering leadership,
+        system architecture, and career-tech platforms adopted by more than one million users.
+      </p>
+      <p>Team Lead at Lifology · Kerala, India</p>
+    </td>
+  </tr>
+</table>
+
 <p align="center">
-  <strong>Tharun P Karun</strong><br>
-  <a href="https://www.tharunpkarun.com">Website</a> ·
-  <a href="https://github.com/tharunpkarun">GitHub</a>
+  <a href="https://www.tharunpkarun.com"><img alt="Website" src="https://img.shields.io/badge/Website-Visit-7C3AED?style=for-the-badge&amp;logo=safari&amp;logoColor=white"></a>
+  <a href="https://github.com/tharunpkarun"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-Follow-181717?style=for-the-badge&amp;logo=github&amp;logoColor=white"></a>
+  <a href="https://linkedin.com/in/tharunpkarun"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=for-the-badge&amp;logo=linkedin&amp;logoColor=white"></a>
+</p>
+
+| Discover more | Read and explore | Connect |
+| :---: | :---: | :---: |
+| [About me](https://www.tharunpkarun.com/about) | [Blog](https://www.tharunpkarun.com/blog) | [Contact](https://www.tharunpkarun.com/contact) |
+| [Projects](https://www.tharunpkarun.com/projects) | [Home Lab](https://www.tharunpkarun.com/homelab) | [X / Twitter](https://twitter.com/tharunpkarun) |
+
+<p align="center">
+  <img alt="Engineering Leadership" src="https://img.shields.io/badge/Engineering-Leadership-111827?style=flat-square">
+  <img alt="System Architecture" src="https://img.shields.io/badge/System-Architecture-2563EB?style=flat-square">
+  <img alt="AI Architecture" src="https://img.shields.io/badge/AI-Architecture-7C3AED?style=flat-square">
+  <img alt="Human-Centric AI" src="https://img.shields.io/badge/Human--Centric-AI-DB2777?style=flat-square">
 </p>
 
 ## License
