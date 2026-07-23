@@ -376,7 +376,7 @@ When reporting protocol behavior, include the manufacturer, model, firmware vers
         I build AI-first products and scalable, human-centered systems. My work spans engineering leadership,
         system architecture, and career-tech platforms adopted by more than one million users.
       </p>
-      <p>Team Lead at Lifology · Kerala, India</p>
+      <p>Kerala, India</p>
     </td>
   </tr>
 </table>
