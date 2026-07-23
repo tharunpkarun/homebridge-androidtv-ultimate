@@ -27,6 +27,14 @@
         "maximum": 30000,
         "default": 2500
       },
+      "discoveryIntervalSeconds": {
+        "title": "mDNS Refresh Interval",
+        "description": "How often to refresh cached Android TV IP addresses. Previously discovered TVs remain cached while offline.",
+        "type": "integer",
+        "minimum": 15,
+        "maximum": 3600,
+        "default": 60
+      },
       "devices": {
         "title": "Televisions",
         "type": "array",
@@ -44,6 +52,21 @@
             },
             "host": {
               "title": "Host or IP Address",
+              "type": "string"
+            },
+            "discoveryId": {
+              "title": "Stable Discovery Identity",
+              "description": "Automatically saved from Android TV mDNS metadata, including its advertised hardware identifier.",
+              "type": "string"
+            },
+            "serviceName": {
+              "title": "mDNS Service Identity",
+              "description": "Automatically saved by network discovery and used to follow IP changes.",
+              "type": "string"
+            },
+            "hostname": {
+              "title": "mDNS Hostname",
+              "description": "Automatically saved by network discovery.",
               "type": "string"
             },
             "remotePort": {
@@ -70,7 +93,7 @@
             },
             "mac": {
               "title": "Wake-on-LAN MAC Address",
-              "description": "Optional. Used only to turn on an offline TV.",
+              "description": "Optional. Used as a stable discovery identity and to turn on an offline TV.",
               "type": "string",
               "pattern": "^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$"
             },
@@ -110,6 +133,7 @@
     "name",
     "debug",
     "disconnectGraceMs",
+    "discoveryIntervalSeconds",
     {
       "key": "devices",
       "type": "array",

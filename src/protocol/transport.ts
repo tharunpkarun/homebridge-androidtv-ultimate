@@ -5,6 +5,7 @@ export interface AndroidTvTransport {
   readonly snapshot: Readonly<DeviceSnapshot>;
   start(): void;
   stop(): void;
+  updateEndpoint(host: string, port: number): void;
   sendKey(key: AndroidKeyCode): Promise<void>;
   launchApp(uri: string): Promise<void>;
   setPower(active: boolean): Promise<void>;

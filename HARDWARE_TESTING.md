@@ -3,6 +3,8 @@
 Run this checklist on both Percee TV and Xstream before the first stable release.
 
 - [ ] mDNS discovery finds the correct host and name.
+- [ ] A DHCP address change updates the cached endpoint and reconnects without re-pairing.
+- [ ] A TV that is offline during discovery remains in the dashboard cache.
 - [ ] Fresh pairing displays and accepts a six-character code.
 - [ ] Credentials survive Homebridge restart and plugin upgrade.
 - [ ] Turning the TV off makes Home show Off after the grace period.

@@ -10,6 +10,9 @@ export interface AndroidTvDeviceConfig {
   id: string;
   name: string;
   host: string;
+  discoveryId?: string;
+  serviceName?: string;
+  hostname?: string;
   remotePort?: number;
   pairingPort?: number;
   model?: string;
@@ -24,6 +27,7 @@ export interface AndroidTvPlatformConfig extends PlatformConfig {
   name?: string;
   debug?: boolean;
   disconnectGraceMs?: number;
+  discoveryIntervalSeconds?: number;
   devices?: AndroidTvDeviceConfig[];
 }
 
@@ -57,12 +61,22 @@ export interface PersistedStatus extends DeviceSnapshot {
 
 export interface DiscoveredAndroidTv {
   id: string;
+  discoveryId: string;
   name: string;
   host: string;
   port: number;
+  serviceName: string;
+  hostname: string;
+  mac?: string;
   model?: string;
   manufacturer?: string;
   txt: Record<string, string>;
+}
+
+export interface CachedAndroidTv extends DiscoveredAndroidTv {
+  aliases: string[];
+  firstSeen: string;
+  lastSeen: string;
 }
 
 export interface MigrationPreview {

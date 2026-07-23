@@ -13,6 +13,7 @@ An unreachable TV must not appear as **On**. AndroidTV Ultimate starts at `Off`,
 - Android TV Remote Service v2 pairing without ADB
 - HomeKit Television remote keys, power, volume, mute, and app URI launch
 - mDNS discovery plus manual host configuration
+- Persistent discovery cache that follows DHCP/IP changes by Android TXT/hardware ID, MAC, service name, or hostname
 - Encrypted TLS credentials stored outside `config.json` with mode `0600`
 - Optional Wake-on-LAN only when an offline TV is turned on
 - App URI/package entries exposed as HomeKit Input Sources
@@ -41,6 +42,8 @@ npm link
 ```
 
 Open Homebridge, add **AndroidTV Ultimate**, then use its settings dashboard to discover and pair each TV. Restart Homebridge after adding or pairing a device.
+
+Discovered endpoints are cached under `androidtv-ultimate/discovery.json`. The plugin refreshes `_androidtvremote2._tcp.local` every 60 seconds by default. If a paired TV receives a different DHCP address, its live transport switches to the new address and reconnects without changing its HomeKit identity or pairing credentials. Offline TVs remain in the cache and reappear in the dashboard until they advertise again.
 
 ## Pairing
 

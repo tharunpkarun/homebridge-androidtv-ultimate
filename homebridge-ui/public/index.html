@@ -159,12 +159,27 @@
         title.textContent = device.name
         const detail = document.createElement('small')
         detail.className = 'atvu-muted'
-        detail.textContent = `${device.host}:${device.port}`
+        const seen = device.lastSeen ? ` • last seen ${new Date(device.lastSeen).toLocaleString()}` : ''
+        detail.textContent = `${device.host}:${device.port}${seen}`
         label.append(title, detail)
         const button = document.createElement('button')
         button.className = 'btn btn-outline-primary btn-sm'
         button.textContent = 'Pair'
-        button.addEventListener('click', () => beginPair({ ...device, remotePort: device.port || 6466, pairingPort: 6467, deviceType: 'television', inputs: [] }))
+        button.addEventListener('click', () => beginPair({
+          id: device.id,
+          discoveryId: device.discoveryId,
+          name: device.name,
+          host: device.host,
+          remotePort: device.port || 6466,
+          pairingPort: 6467,
+          serviceName: device.serviceName,
+          hostname: device.hostname,
+          mac: device.mac,
+          model: device.model,
+          manufacturer: device.manufacturer,
+          deviceType: 'television',
+          inputs: [],
+        }))
         row.append(label, button)
         container.append(row)
       }
@@ -205,7 +220,7 @@
         const row = document.createElement('tr')
         const identity = document.createElement('td')
         const name = document.createElement('div'); name.textContent = device.name
-        const host = document.createElement('small'); host.className = 'atvu-muted'; host.textContent = device.host
+        const host = document.createElement('small'); host.className = 'atvu-muted'; host.textContent = status?.host || device.host
         identity.append(name, host)
         const pairingCell = document.createElement('td')
         const badge = document.createElement('span')

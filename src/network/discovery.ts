@@ -6,7 +6,7 @@ const SERVICE = '_androidtvremote2._tcp.local';
 const MDNS_ADDRESS = '224.0.0.251';
 const MDNS_PORT = 5353;
 
-interface DnsRecord {
+export interface DnsRecord {
   name: string;
   type: number;
   data: string | { port: number; target: string } | Record<string, string>;
@@ -148,13 +148,26 @@ function stableId(value: string): string {
   return createHash('sha256').update(value.toLowerCase()).digest('hex').slice(0, 16);
 }
 
-function recordsToDevices(records: DnsRecord[]): DiscoveredAndroidTv[] {
+export function normalizeMac(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const compact = value.replace(/[^0-9a-f]/gi, '').toUpperCase();
+  if (!/^[0-9A-F]{12}$/.test(compact)) {
+    return undefined;
+  }
+  return compact.match(/.{2}/g)?.join(':');
+}
+
+export function recordsToDevices(records: DnsRecord[]): DiscoveredAndroidTv[] {
   const instances = new Set(
     records.filter(record => record.type === 12 && record.name.toLowerCase() === SERVICE)
       .map(record => String(record.data)),
   );
   for (const record of records.filter(record => record.type === 33)) {
-    instances.add(record.name);
+    if (record.name.toLowerCase().endsWith(`.${SERVICE}`)) {
+      instances.add(record.name);
+    }
   }
 
   const devices: DiscoveredAndroidTv[] = [];
@@ -166,15 +179,22 @@ function recordsToDevices(records: DnsRecord[]): DiscoveredAndroidTv[] {
     }
     const txtValue = records.find(record => record.type === 16 && record.name === instance)?.data;
     const txt = txtValue && typeof txtValue !== 'string' && !('port' in txtValue) ? txtValue : {};
-    const address = records.find(record => (record.type === 1 || record.type === 28) && record.name === service.target)?.data;
+    const ipv4 = records.find(record => record.type === 1 && record.name === service.target)?.data;
+    const ipv6 = records.find(record => record.type === 28 && record.name === service.target)?.data;
+    const address = ipv4 ?? ipv6;
     const host = typeof address === 'string' ? address : service.target.replace(/\.$/, '');
     const name = instance.replace(new RegExp(`\\.${SERVICE.replace(/\./g, '\\.')}$`, 'i'), '');
-    const identity = txt.id || txt.deviceid || txt.mac || service.target || instance;
+    const mac = normalizeMac(txt.mac || txt.macaddress || txt.device_mac || txt.deviceid);
+    const discoveryId = txt.id || txt.deviceid || txt.bt || mac || service.target || instance;
     devices.push({
-      id: stableId(identity),
+      id: stableId(discoveryId),
+      discoveryId,
       name,
       host,
       port: service.port,
+      serviceName: instance,
+      hostname: service.target.replace(/\.$/, ''),
+      mac,
       model: txt.md || txt.model,
       manufacturer: txt.manufacturer || txt.vendor,
       txt,
@@ -211,8 +231,14 @@ export async function discoverAndroidTvs(timeoutMs = 4000): Promise<DiscoveredAn
       }
     });
     socket.once('error', error => finish(error));
-    socket.bind(0, () => {
-      socket.setMulticastTTL(2);
+    socket.bind({ port: MDNS_PORT, exclusive: false }, () => {
+      try {
+        socket.addMembership(MDNS_ADDRESS);
+        socket.setMulticastTTL(2);
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)));
+        return;
+      }
       socket.send(query, MDNS_PORT, MDNS_ADDRESS, error => {
         if (error) {
           finish(error);

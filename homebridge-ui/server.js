@@ -7,7 +7,7 @@
   class AndroidTvUltimateUiServer extends HomebridgePluginUiServer {
     constructor() {
       super()
-      this.onRequest('/discover', () => this.wrap(() => api.discover()))
+      this.onRequest('/discover', () => this.wrap(() => api.discover(this.homebridgeStoragePath)))
       this.onRequest('/pair/start', payload => this.wrap(() => api.beginPairing(this.homebridgeStoragePath, payload.device)))
       this.onRequest('/pair/complete', payload => this.wrap(() => api.completePairing(payload.sessionId, payload.code)))
       this.onRequest('/pair/cancel', payload => this.wrap(async () => {

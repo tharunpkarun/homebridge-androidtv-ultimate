@@ -73,6 +73,15 @@ export class AndroidTvAccessory {
     this.transport?.stop();
   }
 
+  updateEndpoint(host: string, port: number): void {
+    if (this.transport) {
+      this.transport.updateEndpoint(host, port);
+    } else {
+      this.device.host = host;
+      this.device.remotePort = port;
+    }
+  }
+
   private configureInputs(): void {
     const { Service, Characteristic } = this.platform;
     const used = new Set<number>();

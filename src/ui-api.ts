@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import tls from 'node:tls';
 import type { AndroidTvDeviceConfig } from './types';
-import { discoverAndroidTvs } from './network/discovery';
+import { DiscoveryCache } from './network/discovery-cache';
 import { frameMessage, FrameDecoder } from './protocol/framing';
 import { PairingClient } from './protocol/pairing-client';
 import { encodeConfigure } from './protocol/remote-messages';
@@ -16,8 +16,8 @@ interface PairingSession {
 
 const sessions = new Map<string, PairingSession>();
 
-export async function discover(): Promise<ReturnType<typeof discoverAndroidTvs> extends Promise<infer T> ? T : never> {
-  return discoverAndroidTvs();
+export async function discover(storagePath: string) {
+  return new DiscoveryCache(storagePath).scan();
 }
 
 export async function beginPairing(
@@ -76,9 +76,12 @@ export function cancelPairing(sessionId: string): void {
 export async function status(storagePath: string): Promise<{
   paired: Awaited<ReturnType<CredentialStore['list']>>;
   statuses: Awaited<ReturnType<CredentialStore['readStatuses']>>;
+  discovered: ReturnType<DiscoveryCache['list']>;
 }> {
   const store = new CredentialStore(storagePath);
-  return { paired: await store.list(), statuses: await store.readStatuses() };
+  const discovery = new DiscoveryCache(storagePath);
+  await discovery.load();
+  return { paired: await store.list(), statuses: await store.readStatuses(), discovered: discovery.list() };
 }
 
 export async function testConnection(storagePath: string, device: AndroidTvDeviceConfig): Promise<{
@@ -90,16 +93,19 @@ export async function testConnection(storagePath: string, device: AndroidTvDevic
   if (!credentials) {
     throw new Error('This TV has not been paired');
   }
+  const discovery = new DiscoveryCache(storagePath);
+  await discovery.load();
+  const resolved = await discovery.resolveDevice(device);
   const started = Date.now();
   return new Promise((resolve, reject) => {
     const decoder = new FrameDecoder();
     const socket = tls.connect({
-      host: device.host,
-      port: device.remotePort ?? 6466,
+      host: resolved.host,
+      port: resolved.remotePort ?? 6466,
       cert: credentials.certificate,
       key: credentials.privateKey,
       rejectUnauthorized: false,
-      ...(isIP(device.host) === 0 ? { servername: device.host } : {}),
+      ...(isIP(resolved.host) === 0 ? { servername: resolved.host } : {}),
     });
     const timer = setTimeout(() => {
       socket.destroy();
@@ -148,6 +154,7 @@ export async function diagnostics(storagePath: string): Promise<Record<string, u
     remotePort: 6466,
     paired: current.paired,
     statuses: current.statuses,
+    discovered: current.discovered,
     credentialsIncluded: false,
   };
 }

@@ -59,6 +59,26 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
     this.stateMachine.stop();
   }
 
+  updateEndpoint(host: string, port: number): void {
+    if (this.device.host === host && (this.device.remotePort ?? 6466) === port) {
+      return;
+    }
+    this.device.host = host;
+    this.device.remotePort = port;
+    if (this.stopped) {
+      return;
+    }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+    if (this.socket) {
+      this.socket.destroy();
+    } else {
+      this.connect();
+    }
+  }
+
   async sendKey(key: AndroidKeyCode): Promise<void> {
     this.write(encodeKey(key));
   }
