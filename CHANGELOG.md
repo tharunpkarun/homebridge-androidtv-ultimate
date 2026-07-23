@@ -2,6 +2,15 @@
 
 All notable changes are documented here.
 
+## Unreleased
+
+- Rebuilt the custom settings UI with Dashboard, Devices, Settings, and Tools & Support tabs.
+- Added rich device cards with explicit TV names, manufacturer/model, pairing and live state, network/discovery identity, first/last seen times, Wake-on-LAN readiness, app inputs, and connection-test results.
+- Added automatic, light, and dark themes with responsive layouts.
+- Replaced prompt-based manual setup with a complete TV and app-input editor.
+- Added package/runtime details, structured GitHub bug reporting, and privacy-safe diagnostics with identifiers redacted by default.
+- Added passphrase-protected AES-256-GCM backup and restore for plugin configuration, pairing credentials, discovery cache, and last-known state.
+
 ## 0.1.1 - 2026-07-24
 
 - Persistent mDNS endpoint cache with automatic IP refresh and live transport reconnection.

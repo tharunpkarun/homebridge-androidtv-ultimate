@@ -1,12 +1,15 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { isIP } from 'node:net';
+import path from 'node:path';
 import tls from 'node:tls';
-import type { AndroidTvDeviceConfig } from './types';
+import type { AndroidTvDeviceConfig, AndroidTvPlatformConfig } from './types';
 import { DiscoveryCache } from './network/discovery-cache';
 import { frameMessage, FrameDecoder } from './protocol/framing';
 import { PairingClient } from './protocol/pairing-client';
 import { encodeConfigure } from './protocol/remote-messages';
 import { CredentialStore } from './storage/credential-store';
+import { createEncryptedBackup, restoreEncryptedBackup } from './storage/backup';
 import { previewLegacyMigration } from './storage/migration';
 
 interface PairingSession {
@@ -15,6 +18,78 @@ interface PairingSession {
 }
 
 const sessions = new Map<string, PairingSession>();
+
+interface PackageManifest {
+  name?: string;
+  displayName?: string;
+  version?: string;
+  description?: string;
+  homepage?: string;
+  repository?: { url?: string } | string;
+  bugs?: { url?: string } | string;
+  engines?: Record<string, string>;
+  license?: string;
+  author?: { name?: string; url?: string } | string;
+}
+
+function manifestUrl(value?: { url?: string } | string): string | undefined {
+  if (typeof value === 'string') {
+    return value.replace(/^git\+/, '').replace(/\.git$/, '');
+  }
+  return value?.url?.replace(/^git\+/, '').replace(/\.git$/, '');
+}
+
+export async function about(): Promise<Record<string, unknown>> {
+  let source: string | undefined;
+  for (const candidate of [path.join(__dirname, '..', 'package.json'), path.join(process.cwd(), 'package.json')]) {
+    try {
+      source = await readFile(candidate, 'utf8');
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+  if (!source) {
+    throw new Error('Could not locate the plugin package manifest');
+  }
+  const manifest = JSON.parse(source) as PackageManifest;
+  return {
+    name: manifest.name,
+    displayName: manifest.displayName,
+    version: manifest.version,
+    description: manifest.description,
+    license: manifest.license,
+    author: manifest.author,
+    homepage: manifest.homepage,
+    repository: manifestUrl(manifest.repository),
+    bugs: manifestUrl(manifest.bugs),
+    engines: manifest.engines,
+    runtime: {
+      node: process.version,
+      platform: process.platform,
+      architecture: process.arch,
+    },
+  };
+}
+
+export async function exportBackup(
+  storagePath: string,
+  config: AndroidTvPlatformConfig,
+  passphrase: string,
+) {
+  const packageDetails = await about();
+  return createEncryptedBackup(storagePath, config, String(packageDetails.version ?? 'unknown'), passphrase);
+}
+
+export async function importBackup(
+  storagePath: string,
+  backup: unknown,
+  passphrase: string,
+): ReturnType<typeof restoreEncryptedBackup> {
+  return restoreEncryptedBackup(storagePath, backup, passphrase);
+}
 
 export async function discover(storagePath: string) {
   return new DiscoveryCache(storagePath).scan();
@@ -88,6 +163,9 @@ export async function testConnection(storagePath: string, device: AndroidTvDevic
   connected: true;
   latencyMs: number;
   protocol: string;
+  host: string;
+  port: number;
+  testedAt: string;
 }> {
   const credentials = await new CredentialStore(storagePath).get(device.id);
   if (!credentials) {
@@ -115,7 +193,14 @@ export async function testConnection(storagePath: string, device: AndroidTvDevic
     const finish = (): void => {
       clearTimeout(timer);
       socket.destroy();
-      resolve({ connected: true, latencyMs: Date.now() - started, protocol: 'Remote Service v2 (mutual TLS)' });
+      resolve({
+        connected: true,
+        latencyMs: Date.now() - started,
+        protocol: 'Remote Service v2 (mutual TLS)',
+        host: resolved.host,
+        port: resolved.remotePort ?? 6466,
+        testedAt: new Date().toISOString(),
+      });
     };
     socket.once('secureConnect', () => socket.write(frameMessage(encodeConfigure(credentials.clientName))));
     socket.on('data', data => {
@@ -142,19 +227,54 @@ export async function applyMigration(storagePath: string): Promise<Awaited<Retur
   return preview;
 }
 
-export async function diagnostics(storagePath: string): Promise<Record<string, unknown>> {
+export async function diagnostics(
+  storagePath: string,
+  includeNetworkIdentifiers = false,
+): Promise<Record<string, unknown>> {
   const current = await status(storagePath);
+  const paired = includeNetworkIdentifiers
+    ? current.paired
+    : current.paired.map(item => ({
+      ...item,
+      deviceId: '<redacted>',
+      fingerprint: '<redacted>',
+      clientName: '<redacted>',
+    }));
+  const statuses = includeNetworkIdentifiers
+    ? current.statuses
+    : current.statuses.map(item => ({
+      ...item,
+      deviceId: '<redacted>',
+      host: '<redacted>',
+    }));
+  const discovered = includeNetworkIdentifiers
+    ? current.discovered
+    : current.discovered.map(item => ({
+      name: '<redacted>',
+      id: '<redacted>',
+      discoveryId: '<redacted>',
+      host: '<redacted>',
+      port: item.port,
+      serviceName: '<redacted>',
+      hostname: '<redacted>',
+      mac: item.mac ? '<redacted>' : undefined,
+      model: item.model,
+      manufacturer: item.manufacturer,
+      txtKeys: Object.keys(item.txt ?? {}).sort(),
+      aliasCount: item.aliases.length,
+      firstSeen: item.firstSeen,
+      lastSeen: item.lastSeen,
+    }));
   return {
     generatedAt: new Date().toISOString(),
-    node: process.version,
-    platform: process.platform,
-    architecture: process.arch,
+    package: await about(),
     protocol: 'Android TV Remote Service v2',
     pairingPort: 6467,
     remotePort: 6466,
-    paired: current.paired,
-    statuses: current.statuses,
-    discovered: current.discovered,
+    paired,
+    statuses,
+    discovered,
     credentialsIncluded: false,
+    networkIdentifiersIncluded: includeNetworkIdentifiers,
   };
 }

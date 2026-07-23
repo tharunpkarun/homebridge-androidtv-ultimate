@@ -8,6 +8,17 @@
     constructor() {
       super()
       this.onRequest('/discover', () => this.wrap(() => api.discover(this.homebridgeStoragePath)))
+      this.onRequest('/about', () => this.wrap(() => api.about()))
+      this.onRequest('/backup/export', payload => this.wrap(() => api.exportBackup(
+        this.homebridgeStoragePath,
+        payload.config,
+        payload.passphrase,
+      )))
+      this.onRequest('/backup/import', payload => this.wrap(() => api.importBackup(
+        this.homebridgeStoragePath,
+        payload.backup,
+        payload.passphrase,
+      )))
       this.onRequest('/pair/start', payload => this.wrap(() => api.beginPairing(this.homebridgeStoragePath, payload.device)))
       this.onRequest('/pair/complete', payload => this.wrap(() => api.completePairing(payload.sessionId, payload.code)))
       this.onRequest('/pair/cancel', payload => this.wrap(async () => {
@@ -18,7 +29,10 @@
       this.onRequest('/test', payload => this.wrap(() => api.testConnection(this.homebridgeStoragePath, payload.device)))
       this.onRequest('/migration/preview', () => this.wrap(() => api.migrationPreview(this.homebridgeStoragePath)))
       this.onRequest('/migration/apply', () => this.wrap(() => api.applyMigration(this.homebridgeStoragePath)))
-      this.onRequest('/diagnostics', () => this.wrap(() => api.diagnostics(this.homebridgeStoragePath)))
+      this.onRequest('/diagnostics', payload => this.wrap(() => api.diagnostics(
+        this.homebridgeStoragePath,
+        payload?.includeNetworkIdentifiers === true,
+      )))
       this.ready()
     }
 
