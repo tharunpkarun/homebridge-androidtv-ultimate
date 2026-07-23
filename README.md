@@ -79,8 +79,7 @@ The paired device appears in Apple Home as a Television accessory. AndroidTV Ult
 | Cloud APIs, analytics, or telemetry | ➖ | Not used |
 | ADB, Fire TV, voice streaming, or Remote Service v1 | ➖ | Outside the current scope |
 
-<details>
-<summary><strong>Which HomeKit controls are exposed?</strong></summary>
+### HomeKit controls
 
 Depending on firmware support, AndroidTV Ultimate exposes:
 
@@ -92,8 +91,6 @@ Depending on firmware support, AndroidTV Ultimate exposes:
 - App URI launch through Television Input Sources
 
 Every device remains isolated: a disconnected TV cannot overwrite another TV's state.
-
-</details>
 
 ## Discovery and IP recovery
 
@@ -120,8 +117,7 @@ Discovery data is stored at:
 
 Previously discovered devices remain cached while powered off. New devices appear in the pairing dashboard, but are not added to Apple Home until pairing succeeds.
 
-<details>
-<summary><strong>How does the plugin recognize the same device?</strong></summary>
+### Device identity matching
 
 The cache matches advertisements using the strongest available identity:
 
@@ -134,14 +130,9 @@ The cache matches advertisements using the strongest available identity:
 
 The Android `bt` TXT value may be retained as a stable discovery identifier, but it is never treated as a Wake-on-LAN network MAC.
 
-</details>
-
-<details>
-<summary><strong>What happens with IPv6?</strong></summary>
+### IPv4 and IPv6
 
 IPv4 is preferred when a device advertises both IPv4 and link-local IPv6 addresses. IPv6 remains available as a fallback when it is the only advertised address.
-
-</details>
 
 ## Pairing
 
@@ -154,8 +145,7 @@ Remote Service v2 uses two local TLS endpoints:
 
 Pairing creates an individual certificate and private key for each device. If a TV is factory-reset or revokes its client, select **Re-pair** in the dashboard.
 
-<details>
-<summary><strong>Where are credentials stored?</strong></summary>
+### Credential storage
 
 Credentials are kept outside `config.json` at:
 
@@ -164,8 +154,6 @@ Credentials are kept outside `config.json` at:
 ```
 
 The file is written with owner-only permissions (`0600`). Certificates, private keys, and pairing codes are excluded from dashboard diagnostics.
-
-</details>
 
 ## Power-state behavior
 
@@ -180,8 +168,7 @@ The accessory changes to `On` only after mutual TLS connects successfully. Follo
 
 ## Feature guides
 
-<details>
-<summary><strong>Configure app Input Sources</strong></summary>
+### App Input Sources
 
 Remote Service v2 can launch Android app links, but installed-app enumeration is not consistent across firmware. Configure Input Sources explicitly with a web or custom URI:
 
@@ -201,10 +188,7 @@ Remote Service v2 can launch Android app links, but installed-app enumeration is
 
 Each configured entry appears as a HomeKit Television Input Source.
 
-</details>
-
-<details>
-<summary><strong>Enable Wake-on-LAN</strong></summary>
+### Wake-on-LAN
 
 When a TV is online, power commands use Remote Service v2. When it is offline, an `On` request sends a Wake-on-LAN packet only if `mac` is configured.
 
@@ -212,10 +196,7 @@ The HomeKit accessory remains `Off` until the authenticated remote connection re
 
 Wake-on-LAN depends on hardware and firmware. Enable network standby, quick start, or the equivalent TV setting. Use the Ethernet/Wi-Fi network MAC—not a Bluetooth identifier.
 
-</details>
-
-<details>
-<summary><strong>Run Homebridge in Docker</strong></summary>
+### Docker and network requirements
 
 Host networking is recommended because mDNS multicast and Wake-on-LAN broadcast traffic may not cross a bridged container network.
 
@@ -230,10 +211,7 @@ Required local traffic:
 
 Manual host configuration remains available when multicast cannot reach the container.
 
-</details>
-
-<details>
-<summary><strong>Migrate a legacy configuration</strong></summary>
+### Legacy migration
 
 The dashboard can preview:
 
@@ -244,8 +222,6 @@ The dashboard can preview:
 On common Docker installations this is `/var/lib/homebridge/androidtv-config.json`.
 
 Migration imports recognized device settings and reusable Remote Service v2 certificate/key pairs. It deliberately excludes Apple Home usernames, setup PINs, bridge identities, and cached HomeKit accessories. The original file is not deleted.
-
-</details>
 
 ## Configuration
 
@@ -263,8 +239,7 @@ The dashboard creates and maintains device identities automatically. The main op
 
 Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by discovery and should normally not be edited manually.
 
-<details>
-<summary><strong>Show a complete configuration example</strong></summary>
+### Complete configuration example
 
 ```json
 {
@@ -288,12 +263,9 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 }
 ```
 
-</details>
-
 ## Troubleshooting
 
-<details>
-<summary><strong>Scan Network finds no devices</strong></summary>
+### Scan Network finds no devices
 
 1. Wake the TV and keep it on during the scan.
 2. Confirm Homebridge and the TV are on the same VLAN or multicast-enabled network.
@@ -303,10 +275,7 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 
 **Expected result:** the dashboard lists the device with its current address, port, and last-seen time.
 
-</details>
-
-<details>
-<summary><strong>Pairing does not start or the code fails</strong></summary>
+### Pairing does not start or the code fails
 
 1. Confirm TCP port `6467` is reachable from the Homebridge host.
 2. Keep the TV awake and leave the pairing code visible.
@@ -316,10 +285,7 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 
 **Expected result:** credentials are saved and the dashboard reports the device as paired.
 
-</details>
-
-<details>
-<summary><strong>A paired TV remains offline</strong></summary>
+### A paired TV remains offline
 
 1. Confirm TCP port `6466` is reachable.
 2. Select **Scan Network** to refresh the endpoint cache immediately.
@@ -328,10 +294,7 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 
 **Expected result:** the cached endpoint updates and the existing certificate reconnects without creating a new HomeKit accessory.
 
-</details>
-
-<details>
-<summary><strong>The TV is off but Apple Home shows On</strong></summary>
+### The TV is off but Apple Home shows On
 
 1. Wait for `disconnectGraceMs` to expire.
 2. Confirm the dashboard reports `offline`.
@@ -340,10 +303,7 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 
 **Expected result:** the accessory reports `Off` after the remote connection is unavailable beyond the grace period.
 
-</details>
-
-<details>
-<summary><strong>Wake-on-LAN does not work</strong></summary>
+### Wake-on-LAN does not work
 
 1. Confirm `mac` is the Ethernet/Wi-Fi network MAC, not a Bluetooth identifier.
 2. Enable network standby or quick start on the TV.
@@ -351,8 +311,6 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 4. Confirm the Homebridge host or container can send UDP broadcasts.
 
 **Expected result:** the TV wakes, reconnects over TLS, and only then changes to `On` in HomeKit.
-
-</details>
 
 > [!TIP]
 > Generate diagnostics from the dashboard before opening an issue. Diagnostics include runtime, connection, and discovery status, but exclude pairing credentials.
@@ -372,8 +330,7 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 
 AndroidTV Ultimate targets Android TV and Google TV devices that expose Remote Service v2.
 
-<details>
-<summary><strong>Features outside the current scope</strong></summary>
+### Features outside the current scope
 
 - Fire TV support
 - ADB control
@@ -382,14 +339,11 @@ AndroidTV Ultimate targets Android TV and Google TV devices that expose Remote S
 - Automatic installed-app enumeration
 - Remote Service v1
 
-</details>
-
 ## Development and contributing
 
 Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) before contributing.
 
-<details>
-<summary><strong>Set up a development checkout</strong></summary>
+### Development setup
 
 ```bash
 git clone https://github.com/tharunpkarun/homebridge-androidtv-ultimate.git
@@ -402,14 +356,14 @@ npm pack --dry-run
 
 Tests cover protobuf framing, pairing and remote messages, state isolation, Wake-on-LAN, migration, mDNS filtering, persistent discovery, offline cache retention, and DHCP/IP changes.
 
-</details>
-
 When reporting protocol behavior, include the manufacturer, model, firmware version, and sanitized dashboard diagnostics.
 
 ## License
 
 <p align="center">
-  <a href="LICENSE">MIT License</a> © 2026 Tharun P Karun<br>
+  <a href="LICENSE">MIT License</a> © 2026 <a href="https://github.com/tharunpkarun">Tharun P Karun</a><br>
+  <a href="https://www.tharunpkarun.com">Website</a> ·
+  <a href="https://github.com/tharunpkarun">GitHub profile</a> ·
   <a href="https://www.npmjs.com/package/homebridge-androidtv-ultimate">npm</a> ·
   <a href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/issues">Issues</a> ·
   <a href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/pulls">Pull requests</a>
