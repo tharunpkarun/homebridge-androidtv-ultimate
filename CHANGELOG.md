@@ -2,7 +2,7 @@
 
 All notable changes are documented here.
 
-## 0.1.1 - Unreleased
+## 0.1.1 - 2026-07-24
 
 - Persistent mDNS endpoint cache with automatic IP refresh and live transport reconnection.
 - Stable matching by Android TXT/hardware ID, MAC, service name, hostname, and prior endpoint.
