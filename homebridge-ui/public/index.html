@@ -1,0 +1,274 @@
+<style>
+  .atvu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .atvu-card { border: 1px solid var(--bs-border-color, #ddd); border-radius: .65rem; padding: 1rem; background: var(--bs-body-bg, #fff); }
+  .atvu-card h5 { margin-bottom: .25rem; }
+  .atvu-muted { color: var(--bs-secondary-color, #6c757d); font-size: .875rem; }
+  .atvu-status { display: inline-block; border-radius: 999px; padding: .15rem .55rem; font-size: .75rem; font-weight: 600; }
+  .atvu-online { background: #d1e7dd; color: #0f5132; }
+  .atvu-offline { background: #e2e3e5; color: #41464b; }
+  .atvu-unpaired { background: #fff3cd; color: #664d03; }
+  .atvu-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+  #atvuPairing { border-left: 4px solid #0d6efd; }
+  #atvuDiagnostics { max-height: 280px; overflow: auto; white-space: pre-wrap; font-size: .78rem; }
+</style>
+
+<div class="mb-3">
+  <h4 class="mb-1">AndroidTV Ultimate</h4>
+  <div class="atvu-muted">Local Remote Service v2 control. Pairing certificates never leave Homebridge.</div>
+</div>
+
+<div class="atvu-grid mb-3">
+  <section class="atvu-card">
+    <h5>Discover TVs</h5>
+    <p class="atvu-muted">Find Android TV and Google TV devices advertised on your LAN.</p>
+    <div class="atvu-actions">
+      <button id="atvuDiscover" class="btn btn-primary btn-sm" type="button">Scan Network</button>
+      <button id="atvuManual" class="btn btn-outline-secondary btn-sm" type="button">Add Manually</button>
+    </div>
+    <div id="atvuDiscovered" class="mt-3"></div>
+  </section>
+
+  <section class="atvu-card">
+    <h5>Migration</h5>
+    <p class="atvu-muted">Preview the old androidtv-config.json. Apple Home identity is never copied.</p>
+    <div class="atvu-actions">
+      <button id="atvuMigrationPreview" class="btn btn-outline-primary btn-sm" type="button">Preview</button>
+      <button id="atvuMigrationApply" class="btn btn-outline-success btn-sm d-none" type="button">Import TVs & Credentials</button>
+    </div>
+    <div id="atvuMigration" class="atvu-muted mt-2"></div>
+  </section>
+</div>
+
+<section id="atvuPairing" class="atvu-card mb-3 d-none">
+  <h5>Pair <span id="atvuPairName"></span></h5>
+  <p class="atvu-muted">Keep the code visible on the TV, enter all six hexadecimal characters, then complete pairing.</p>
+  <div class="input-group" style="max-width: 420px">
+    <input id="atvuCode" class="form-control text-uppercase" maxlength="6" autocomplete="one-time-code" placeholder="A1B2C3">
+    <button id="atvuPairComplete" class="btn btn-primary" type="button">Complete Pairing</button>
+    <button id="atvuPairCancel" class="btn btn-outline-secondary" type="button">Cancel</button>
+  </div>
+  <div id="atvuFingerprint" class="atvu-muted mt-2"></div>
+</section>
+
+<section class="atvu-card mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <h5>Configured TVs</h5>
+      <div class="atvu-muted">Each row is an independent HomeKit Television accessory.</div>
+    </div>
+    <button id="atvuRefresh" class="btn btn-outline-primary btn-sm" type="button">Refresh</button>
+  </div>
+  <div id="atvuDevices" class="table-responsive"></div>
+</section>
+
+<section class="atvu-card mb-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h5>Diagnostics</h5>
+      <div class="atvu-muted">Safe to attach to an issue: private keys and certificates are excluded.</div>
+    </div>
+    <button id="atvuLoadDiagnostics" class="btn btn-outline-secondary btn-sm" type="button">Generate</button>
+  </div>
+  <pre id="atvuDiagnostics" class="mt-2 mb-0 d-none"></pre>
+</section>
+
+<script>
+  (() => {
+    let platform = { platform: 'AndroidTVUltimate', name: 'AndroidTV Ultimate', devices: [] }
+    let activePairing = null
+    let migration = null
+    const byId = id => document.getElementById(id)
+    const errorMessage = error => error?.error?.message || error?.message || String(error)
+
+    async function savePlatform() {
+      await homebridge.updatePluginConfig([platform])
+      await homebridge.savePluginConfig()
+    }
+
+    function deviceFromPrompts() {
+      const name = window.prompt('TV name')?.trim()
+      if (!name) return null
+      const host = window.prompt('IP address or hostname')?.trim()
+      if (!host) return null
+      return { id: `${name}-${host}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, host, remotePort: 6466, pairingPort: 6467, deviceType: 'television', inputs: [] }
+    }
+
+    async function beginPair(device) {
+      byId('atvuDiscover').disabled = true
+      try {
+        const result = await homebridge.request('/pair/start', { device })
+        activePairing = { sessionId: result.sessionId, device }
+        byId('atvuPairName').textContent = device.name
+        byId('atvuFingerprint').textContent = `Client certificate SHA-256: ${result.fingerprint}`
+        byId('atvuPairing').classList.remove('d-none')
+        byId('atvuCode').focus()
+        homebridge.toast.success('Enter the code displayed on the TV.', 'Pairing started')
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Could not start pairing')
+      } finally {
+        byId('atvuDiscover').disabled = false
+        homebridge.fixScrollHeight()
+      }
+    }
+
+    async function completePairing() {
+      if (!activePairing) return
+      const code = byId('atvuCode').value.replace(/[^0-9a-f]/gi, '').toUpperCase()
+      if (code.length !== 6) {
+        homebridge.toast.error('Enter the six-character code from the TV.', 'Pairing')
+        return
+      }
+      byId('atvuPairComplete').disabled = true
+      try {
+        await homebridge.request('/pair/complete', { sessionId: activePairing.sessionId, code })
+        const index = (platform.devices || []).findIndex(item => item.id === activePairing.device.id)
+        if (index >= 0) platform.devices[index] = activePairing.device
+        else platform.devices = [...(platform.devices || []), activePairing.device]
+        await savePlatform()
+        homebridge.toast.success('Paired and saved. Restart Homebridge to add the TV.', 'AndroidTV Ultimate')
+        activePairing = null
+        byId('atvuPairing').classList.add('d-none')
+        byId('atvuCode').value = ''
+        await refresh()
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Pairing failed')
+      } finally {
+        byId('atvuPairComplete').disabled = false
+      }
+    }
+
+    async function cancelPairing() {
+      if (activePairing) await homebridge.request('/pair/cancel', { sessionId: activePairing.sessionId }).catch(() => undefined)
+      activePairing = null
+      byId('atvuPairing').classList.add('d-none')
+    }
+
+    function renderDiscovery(devices) {
+      const container = byId('atvuDiscovered')
+      container.replaceChildren()
+      if (!devices.length) {
+        container.textContent = 'No Remote Service v2 devices responded. You can add the TV manually.'
+        container.className = 'atvu-muted mt-3'
+        return
+      }
+      for (const device of devices) {
+        const row = document.createElement('div')
+        row.className = 'd-flex justify-content-between align-items-center border-top py-2'
+        const label = document.createElement('div')
+        const title = document.createElement('div')
+        title.textContent = device.name
+        const detail = document.createElement('small')
+        detail.className = 'atvu-muted'
+        detail.textContent = `${device.host}:${device.port}`
+        label.append(title, detail)
+        const button = document.createElement('button')
+        button.className = 'btn btn-outline-primary btn-sm'
+        button.textContent = 'Pair'
+        button.addEventListener('click', () => beginPair({ ...device, remotePort: device.port || 6466, pairingPort: 6467, deviceType: 'television', inputs: [] }))
+        row.append(label, button)
+        container.append(row)
+      }
+    }
+
+    async function discover() {
+      byId('atvuDiscover').disabled = true
+      byId('atvuDiscovered').textContent = 'Scanning…'
+      try {
+        renderDiscovery(await homebridge.request('/discover'))
+      } catch (error) {
+        byId('atvuDiscovered').textContent = ''
+        homebridge.toast.error(errorMessage(error), 'Discovery failed')
+      } finally {
+        byId('atvuDiscover').disabled = false
+        homebridge.fixScrollHeight()
+      }
+    }
+
+    async function refresh() {
+      const result = await homebridge.request('/status')
+      const pairedIds = new Set(result.paired.map(item => item.deviceId))
+      const statuses = new Map(result.statuses.map(item => [item.deviceId, item]))
+      const wrapper = byId('atvuDevices')
+      wrapper.replaceChildren()
+      if (!(platform.devices || []).length) {
+        wrapper.textContent = 'No TVs configured yet.'
+        wrapper.className = 'atvu-muted'
+        return
+      }
+      wrapper.className = 'table-responsive'
+      const table = document.createElement('table')
+      table.className = 'table table-sm align-middle mb-0'
+      table.innerHTML = '<thead><tr><th>TV</th><th>Pairing</th><th>State</th><th>App inputs</th><th></th></tr></thead>'
+      const body = document.createElement('tbody')
+      for (const device of platform.devices) {
+        const status = statuses.get(device.id)
+        const row = document.createElement('tr')
+        const identity = document.createElement('td')
+        const name = document.createElement('div'); name.textContent = device.name
+        const host = document.createElement('small'); host.className = 'atvu-muted'; host.textContent = device.host
+        identity.append(name, host)
+        const pairingCell = document.createElement('td')
+        const badge = document.createElement('span')
+        badge.className = `atvu-status ${pairedIds.has(device.id) ? 'atvu-online' : 'atvu-unpaired'}`
+        badge.textContent = pairedIds.has(device.id) ? 'Paired' : 'Not paired'
+        pairingCell.append(badge)
+        const stateCell = document.createElement('td')
+        const state = document.createElement('span')
+        state.className = `atvu-status ${status?.connection === 'online' ? 'atvu-online' : 'atvu-offline'}`
+        state.textContent = status?.connection === 'online' ? (status.power ? 'On' : 'Standby') : 'Off / offline'
+        stateCell.append(state)
+        const appsCell = document.createElement('td'); appsCell.textContent = String((device.inputs || []).length)
+        const actions = document.createElement('td')
+        const group = document.createElement('div'); group.className = 'atvu-actions'
+        const pair = document.createElement('button'); pair.className = 'btn btn-outline-primary btn-sm'; pair.textContent = pairedIds.has(device.id) ? 'Re-pair' : 'Pair'; pair.addEventListener('click', () => beginPair(device))
+        const test = document.createElement('button'); test.className = 'btn btn-outline-secondary btn-sm'; test.textContent = 'Test'; test.disabled = !pairedIds.has(device.id); test.addEventListener('click', async () => {
+          test.disabled = true
+          try { const value = await homebridge.request('/test', { device }); homebridge.toast.success(`Connected in ${value.latencyMs} ms.`, 'Remote Service v2') }
+          catch (error) { homebridge.toast.error(errorMessage(error), 'Connection test failed') }
+          finally { test.disabled = false }
+        })
+        group.append(pair, test); actions.append(group)
+        row.append(identity, pairingCell, stateCell, appsCell, actions); body.append(row)
+      }
+      table.append(body); wrapper.append(table); homebridge.fixScrollHeight()
+    }
+
+    async function previewMigration() {
+      migration = await homebridge.request('/migration/preview')
+      byId('atvuMigration').textContent = migration.found
+        ? `Found ${migration.devices.length} TV(s), ${migration.credentials.length} reusable pairing credential(s). ${migration.warnings.join(' ')}`
+        : `No legacy file found at ${migration.source}.`
+      byId('atvuMigrationApply').classList.toggle('d-none', !migration.found || migration.devices.length === 0)
+      homebridge.fixScrollHeight()
+    }
+
+    async function applyMigration() {
+      if (!migration) return
+      const result = await homebridge.request('/migration/apply')
+      const existing = new Set((platform.devices || []).map(item => item.id))
+      platform.devices = [...(platform.devices || []), ...result.devices.filter(item => !existing.has(item.id))]
+      await savePlatform()
+      homebridge.toast.success(`Imported ${result.devices.length} TV(s). Restart Homebridge when ready.`, 'Migration complete')
+      await refresh()
+    }
+
+    byId('atvuDiscover').addEventListener('click', discover)
+    byId('atvuManual').addEventListener('click', () => { const device = deviceFromPrompts(); if (device) beginPair(device) })
+    byId('atvuPairComplete').addEventListener('click', completePairing)
+    byId('atvuPairCancel').addEventListener('click', cancelPairing)
+    byId('atvuRefresh').addEventListener('click', () => refresh().catch(error => homebridge.toast.error(errorMessage(error), 'Refresh failed')))
+    byId('atvuMigrationPreview').addEventListener('click', () => previewMigration().catch(error => homebridge.toast.error(errorMessage(error), 'Migration preview failed')))
+    byId('atvuMigrationApply').addEventListener('click', () => applyMigration().catch(error => homebridge.toast.error(errorMessage(error), 'Migration failed')))
+    byId('atvuLoadDiagnostics').addEventListener('click', async () => {
+      try { const value = await homebridge.request('/diagnostics'); byId('atvuDiagnostics').textContent = JSON.stringify(value, null, 2); byId('atvuDiagnostics').classList.remove('d-none'); homebridge.fixScrollHeight() }
+      catch (error) { homebridge.toast.error(errorMessage(error), 'Diagnostics failed') }
+    })
+
+    homebridge.getPluginConfig().then(config => {
+      platform = config[0] || platform
+      platform.devices ||= []
+      return refresh()
+    }).catch(error => homebridge.toast.error(errorMessage(error), 'Could not load configuration'))
+    homebridge.showSchemaForm()
+  })()
+</script>

@@ -1,0 +1,119 @@
+{
+  "pluginAlias": "AndroidTVUltimate",
+  "pluginType": "platform",
+  "singular": true,
+  "customUi": true,
+  "headerDisplay": "Pair each television from the AndroidTV Ultimate dashboard. Credentials stay in Homebridge storage and are never written into config.json.",
+  "footerDisplay": "Remote Service v2 must be available on TCP ports 6466 and 6467. Wake-on-LAN is optional and is used only when an offline TV is turned on.",
+  "schema": {
+    "type": "object",
+    "required": ["name"],
+    "properties": {
+      "name": {
+        "title": "Platform Name",
+        "type": "string",
+        "default": "AndroidTV Ultimate"
+      },
+      "debug": {
+        "title": "Debug Logging",
+        "type": "boolean",
+        "default": false
+      },
+      "disconnectGraceMs": {
+        "title": "Offline Grace Period",
+        "description": "How long to retain the last known state during a brief reconnect.",
+        "type": "integer",
+        "minimum": 500,
+        "maximum": 30000,
+        "default": 2500
+      },
+      "devices": {
+        "title": "Televisions",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["id", "name", "host"],
+          "properties": {
+            "id": {
+              "title": "Stable Device ID",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "host": {
+              "title": "Host or IP Address",
+              "type": "string"
+            },
+            "remotePort": {
+              "title": "Remote Port",
+              "type": "integer",
+              "default": 6466,
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "pairingPort": {
+              "title": "Pairing Port",
+              "type": "integer",
+              "default": 6467,
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "model": {
+              "title": "Model",
+              "type": "string"
+            },
+            "manufacturer": {
+              "title": "Manufacturer",
+              "type": "string"
+            },
+            "mac": {
+              "title": "Wake-on-LAN MAC Address",
+              "description": "Optional. Used only to turn on an offline TV.",
+              "type": "string",
+              "pattern": "^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$"
+            },
+            "broadcastAddress": {
+              "title": "Wake-on-LAN Broadcast Address",
+              "type": "string",
+              "default": "255.255.255.255"
+            },
+            "deviceType": {
+              "title": "HomeKit Device Type",
+              "type": "string",
+              "default": "television",
+              "oneOf": [
+                { "title": "Television", "enum": ["television"] },
+                { "title": "Set-top Box", "enum": ["settopbox"] }
+              ]
+            },
+            "inputs": {
+              "title": "App Inputs",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "uri"],
+                "properties": {
+                  "name": { "title": "Name", "type": "string" },
+                  "uri": { "title": "Android TV URI or Package", "type": "string" },
+                  "identifier": { "title": "HomeKit Identifier", "type": "integer", "minimum": 1, "maximum": 255 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "layout": [
+    "name",
+    "debug",
+    "disconnectGraceMs",
+    {
+      "key": "devices",
+      "type": "array",
+      "buttonText": "Add TV Manually"
+    }
+  ]
+}

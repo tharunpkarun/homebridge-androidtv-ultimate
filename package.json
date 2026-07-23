@@ -1,0 +1,65 @@
+{
+  "name": "homebridge-androidtv-ultimate",
+  "displayName": "AndroidTV Ultimate",
+  "version": "0.1.0",
+  "description": "Local-first Android TV control for Homebridge using the Remote Service v2 pairing protocol.",
+  "license": "MIT",
+  "author": {
+    "name": "Tharun P Karun",
+    "email": "tpk@tharun.me",
+    "url": "https://github.com/tharunpkarun"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tharunpkarun/homebridge-androidtv-ultimate.git"
+  },
+  "homepage": "https://github.com/tharunpkarun/homebridge-androidtv-ultimate#readme",
+  "bugs": {
+    "url": "https://github.com/tharunpkarun/homebridge-androidtv-ultimate/issues"
+  },
+  "engines": {
+    "homebridge": "^1.8.0 || ^2.0.0",
+    "node": "^20.0.0 || ^22.0.0 || ^24.0.0"
+  },
+  "peerDependencies": {
+    "homebridge": "^1.8.0 || ^2.0.0"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "homebridge-ui",
+    "config.schema.json",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('.test-dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run clean && tsc -p tsconfig.test.json && node --test .test-dist/test/*.test.js",
+    "check": "npm run typecheck && npm test",
+    "prepublishOnly": "npm run check && npm run build"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "homekit",
+    "android-tv",
+    "google-tv",
+    "television",
+    "remote"
+  ],
+  "dependencies": {
+    "@homebridge/plugin-ui-utils": "^2.2.5",
+    "node-forge": "^1.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "homebridge": "^2.0.0",
+    "typescript": "^5.7.0"
+  },
+  "homebridge": {
+    "plugin_type": "platform",
+    "platform": "AndroidTVUltimate"
+  }
+}

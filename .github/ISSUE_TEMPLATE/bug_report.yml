@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible AndroidTV Ultimate problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: checkboxes
+    attributes:
+      label: Preflight
+      options:
+        - label: I removed certificates, keys, pairing codes, and private network details.
+          required: true
+        - label: I tested the latest release.
+          required: true
+  - type: input
+    attributes:
+      label: TV manufacturer and model
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Android TV / Google TV version
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Sanitized dashboard diagnostics
+      render: json
+    validations:
+      required: true
