@@ -2,6 +2,10 @@
 
 All notable changes are documented here.
 
+## 0.3.2 - 2026-07-24
+
+- Replaced the remaining Mermaid Quick Start flow with a portable static diagram so every README visual renders on npm.
+
 ## 0.3.1 - 2026-07-24
 
 - Replaced the Mermaid discovery flowchart with a portable static diagram that renders on both npm and GitHub.
