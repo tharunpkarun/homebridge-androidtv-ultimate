@@ -2,7 +2,7 @@
 
 All notable changes are documented here.
 
-## Unreleased
+## 0.2.0 - 2026-07-24
 
 - Rebuilt the custom settings UI with Dashboard, Devices, Settings, and Tools & Support tabs.
 - Added rich device cards with explicit TV names, manufacturer/model, pairing and live state, network/discovery identity, first/last seen times, Wake-on-LAN readiness, app inputs, and connection-test results.
