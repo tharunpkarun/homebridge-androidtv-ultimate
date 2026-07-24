@@ -2,6 +2,10 @@
 
 All notable changes are documented here.
 
+## 0.3.1 - 2026-07-24
+
+- Replaced the Mermaid discovery flowchart with a portable static diagram that renders on both npm and GitHub.
+
 ## 0.3.0 - 2026-07-24
 
 - Added TV-confirmed active app synchronization for Apple Home Television inputs.

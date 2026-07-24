@@ -97,18 +97,7 @@ Every device remains isolated: a disconnected TV cannot overwrite another TV's s
 
 AndroidTV Ultimate refreshes Android TV mDNS advertisements every 60 seconds by default. It reads the service instance, hostname, TXT metadata, Remote Service port, IPv4 address, and IPv6 address.
 
-```mermaid
-flowchart TD
-    A[Android TV advertises Remote Service v2] --> B[mDNS scan]
-    B --> C[Match stable identity]
-    C --> D[Read cached endpoint]
-    D --> E{IP or port changed?}
-    E -- No --> F[Keep current connection]
-    E -- Yes --> G[Update discovery cache]
-    G --> H[Close stale connection]
-    H --> I[Reconnect with existing TLS certificate]
-    I --> J[Update HomeKit state]
-```
+![AndroidTV Ultimate discovery and automatic IP recovery flowchart](https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/v0.3.1/docs/images/discovery-ip-recovery.png)
 
 Discovery data is stored at:
 
