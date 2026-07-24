@@ -168,6 +168,17 @@ The accessory changes to `On` only after mutual TLS connects successfully. Follo
 
 ## Feature guides
 
+### Settings dashboard
+
+The custom plugin modal is organized into four responsive tabs:
+
+- **Dashboard** — setup progress, discovered/configured/paired/online totals, and device health.
+- **Devices** — explicit TV names, manufacturer/model, pairing and power state, endpoints, mDNS identity, hardware ID, first/last seen timestamps, Wake-on-LAN readiness, app inputs, and connection testing.
+- **Settings** — platform behavior, manual device editing, HomeKit profile, network details, Wake-on-LAN, and app-input management.
+- **Tools & Support** — package/runtime details, GitHub bug reporting, privacy-safe diagnostics, encrypted backup/restore, and legacy migration.
+
+The dashboard supports automatic, light, and dark themes. Automatic mode follows the browser or operating-system color preference.
+
 ### App Input Sources
 
 Remote Service v2 can launch Android app links, but installed-app enumeration is not consistent across firmware. Configure Input Sources explicitly with a web or custom URI:
@@ -222,6 +233,19 @@ The dashboard can preview:
 On common Docker installations this is `/var/lib/homebridge/androidtv-config.json`.
 
 Migration imports recognized device settings and reusable Remote Service v2 certificate/key pairs. It deliberately excludes Apple Home usernames, setup PINs, bridge identities, and cached HomeKit accessories. The original file is not deleted.
+
+### Encrypted plugin backup and restore
+
+**Tools & Support → Encrypted plugin backup** creates a portable AES-256-GCM encrypted file containing:
+
+- AndroidTV Ultimate platform and TV configuration
+- Android Remote Service v2 pairing certificates and private keys
+- Cached discovery identities and current IP endpoints
+- Last-known connection and power state
+
+The encryption key is derived from a passphrase with `scrypt`. The passphrase is never stored and cannot be recovered. Keep the backup file and passphrase separately.
+
+Restoring replaces AndroidTV Ultimate's saved configuration and plugin data, then requires a Homebridge restart. For a complete Homebridge reinstall, also create a full Homebridge backup so the Apple Home bridge identity, cached accessories, and other plugins are preserved.
 
 ## Configuration
 
@@ -313,14 +337,15 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 **Expected result:** the TV wakes, reconnects over TLS, and only then changes to `On` in HomeKit.
 
 > [!TIP]
-> Generate diagnostics from the dashboard before opening an issue. Diagnostics include runtime, connection, and discovery status, but exclude pairing credentials.
+> Generate diagnostics from **Tools & Support** before opening an issue. Certificates and private keys are always excluded; TV names, local addresses, MAC addresses, hardware IDs, and fingerprints are redacted by default.
 
 ## Security and privacy
 
 - Control traffic remains on the local network.
 - Each TV receives its own pairing identity.
 - Credentials are stored outside `config.json` with owner-only permissions.
-- Diagnostics exclude certificates and private keys.
+- Diagnostics always exclude certificates and private keys and redact network/device identifiers by default.
+- Portable plugin backups are encrypted with AES-256-GCM and a user-supplied passphrase.
 - No cloud login, telemetry, analytics, or vendor API is used.
 
 > [!WARNING]

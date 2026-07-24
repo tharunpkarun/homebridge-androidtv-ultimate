@@ -42,6 +42,19 @@ export class CredentialStore {
     await writePrivateJson(this.credentialPath, document);
   }
 
+  async replaceAll(credentials: DeviceCredentials[]): Promise<void> {
+    const replacement: CredentialDocument = { version: 1, credentials: {} };
+    for (const item of credentials) {
+      replacement.credentials[item.deviceId] = item;
+    }
+    await writePrivateJson(this.credentialPath, replacement);
+  }
+
+  async exportAll(): Promise<DeviceCredentials[]> {
+    const document = await this.loadAll();
+    return Object.values(document.credentials).map(item => ({ ...item }));
+  }
+
   async remove(deviceId: string): Promise<void> {
     const document = await this.loadAll();
     delete document.credentials[deviceId];
@@ -65,6 +78,10 @@ export class CredentialStore {
 
   async readStatuses(): Promise<PersistedStatus[]> {
     return readJsonFile<PersistedStatus[]>(this.statusPath, []);
+  }
+
+  async replaceStatuses(statuses: PersistedStatus[]): Promise<void> {
+    await writePrivateJson(this.statusPath, statuses);
   }
 
   private async loadAll(): Promise<CredentialDocument> {

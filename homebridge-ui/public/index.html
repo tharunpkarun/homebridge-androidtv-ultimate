@@ -1,112 +1,660 @@
 <style>
-  .atvu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
-  .atvu-card { border: 1px solid var(--bs-border-color, #ddd); border-radius: .65rem; padding: 1rem; background: var(--bs-body-bg, #fff); }
-  .atvu-card h5 { margin-bottom: .25rem; }
-  .atvu-muted { color: var(--bs-secondary-color, #6c757d); font-size: .875rem; }
-  .atvu-status { display: inline-block; border-radius: 999px; padding: .15rem .55rem; font-size: .75rem; font-weight: 600; }
-  .atvu-online { background: #d1e7dd; color: #0f5132; }
-  .atvu-offline { background: #e2e3e5; color: #41464b; }
-  .atvu-unpaired { background: #fff3cd; color: #664d03; }
-  .atvu-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
-  #atvuPairing { border-left: 4px solid #0d6efd; }
-  #atvuDiagnostics { max-height: 280px; overflow: auto; white-space: pre-wrap; font-size: .78rem; }
+  .atvu-shell {
+    --atvu-canvas: #f4f6fb;
+    --atvu-surface: #ffffff;
+    --atvu-surface-soft: #f8f9fc;
+    --atvu-border: #dce2eb;
+    --atvu-text: #172033;
+    --atvu-muted: #667085;
+    --atvu-primary: #6d3bd1;
+    --atvu-primary-hover: #5730a7;
+    --atvu-primary-soft: #eee8ff;
+    --atvu-success: #067647;
+    --atvu-success-soft: #dcfae6;
+    --atvu-warning: #b54708;
+    --atvu-warning-soft: #fef0c7;
+    --atvu-danger: #b42318;
+    --atvu-danger-soft: #fee4e2;
+    --atvu-shadow: 0 8px 24px rgba(16, 24, 40, .08);
+    color: var(--atvu-text);
+    background: var(--atvu-canvas);
+    border-radius: 14px;
+    overflow: hidden;
+    font-size: 14px;
+  }
+
+  .atvu-shell[data-theme="dark"] {
+    --atvu-canvas: #0f141f;
+    --atvu-surface: #192230;
+    --atvu-surface-soft: #202b3a;
+    --atvu-border: #334155;
+    --atvu-text: #f4f7fb;
+    --atvu-muted: #a8b3c5;
+    --atvu-primary: #a986ff;
+    --atvu-primary-hover: #c0a8ff;
+    --atvu-primary-soft: #302754;
+    --atvu-success: #6ce9a6;
+    --atvu-success-soft: #173f31;
+    --atvu-warning: #fec84b;
+    --atvu-warning-soft: #4a3513;
+    --atvu-danger: #fda29b;
+    --atvu-danger-soft: #4b2527;
+    --atvu-shadow: 0 10px 30px rgba(0, 0, 0, .28);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .atvu-shell[data-theme="auto"] {
+      --atvu-canvas: #0f141f;
+      --atvu-surface: #192230;
+      --atvu-surface-soft: #202b3a;
+      --atvu-border: #334155;
+      --atvu-text: #f4f7fb;
+      --atvu-muted: #a8b3c5;
+      --atvu-primary: #a986ff;
+      --atvu-primary-hover: #c0a8ff;
+      --atvu-primary-soft: #302754;
+      --atvu-success: #6ce9a6;
+      --atvu-success-soft: #173f31;
+      --atvu-warning: #fec84b;
+      --atvu-warning-soft: #4a3513;
+      --atvu-danger: #fda29b;
+      --atvu-danger-soft: #4b2527;
+      --atvu-shadow: 0 10px 30px rgba(0, 0, 0, .28);
+    }
+  }
+
+  .atvu-shell *, .atvu-shell *::before, .atvu-shell *::after { box-sizing: border-box; }
+  .atvu-shell [hidden] { display: none !important; }
+  .atvu-shell button, .atvu-shell input, .atvu-shell select { font: inherit; }
+  .atvu-shell a { color: var(--atvu-primary); }
+  .atvu-hero { padding: 20px; background: linear-gradient(135deg, #5b2eb8 0%, #7c4de0 55%, #3e65d9 100%); color: #fff; }
+  .atvu-hero-row { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+  .atvu-brand { display: flex; gap: 12px; align-items: center; }
+  .atvu-logo { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 13px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); }
+  .atvu-logo svg { width: 27px; height: 27px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .atvu-hero h2 { margin: 0; font-size: 1.25rem; color: #fff; }
+  .atvu-hero p { margin: 4px 0 0; color: rgba(255,255,255,.82); font-size: .82rem; }
+  .atvu-hero-actions { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+  .atvu-hero-button { border: 1px solid rgba(255,255,255,.32); background: rgba(255,255,255,.13); color: #fff; padding: 7px 10px; border-radius: 8px; cursor: pointer; font-weight: 650; font-size: .76rem; }
+  .atvu-hero-button:hover { background: rgba(255,255,255,.22); }
+  .atvu-theme-select { border: 1px solid rgba(255,255,255,.32); background: #542aa8; color: #fff; border-radius: 8px; padding: 6px 8px; font-size: .76rem; }
+
+  .atvu-stats { padding: 14px 16px 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+  .atvu-stat { background: var(--atvu-surface); border: 1px solid var(--atvu-border); border-radius: 11px; padding: 11px 12px; box-shadow: var(--atvu-shadow); }
+  .atvu-stat strong { display: block; color: var(--atvu-text); font-size: 1.25rem; line-height: 1.15; }
+  .atvu-stat span { color: var(--atvu-muted); font-size: .72rem; }
+
+  .atvu-tabs { display: flex; gap: 5px; padding: 14px 16px 0; overflow-x: auto; }
+  .atvu-tab { flex: 1 0 auto; border: 1px solid var(--atvu-border); background: var(--atvu-surface); color: var(--atvu-muted); border-radius: 9px 9px 0 0; padding: 9px 12px; cursor: pointer; font-weight: 700; }
+  .atvu-tab[aria-selected="true"] { color: var(--atvu-primary); background: var(--atvu-primary-soft); border-color: var(--atvu-primary); }
+  .atvu-panel { padding: 14px 16px 18px; }
+  .atvu-section { background: var(--atvu-surface); color: var(--atvu-text); border: 1px solid var(--atvu-border); border-radius: 12px; padding: 15px; box-shadow: var(--atvu-shadow); margin-bottom: 12px; }
+  .atvu-section:last-child { margin-bottom: 0; }
+  .atvu-section-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+  .atvu-section h3, .atvu-section h4 { margin: 0; color: var(--atvu-text); }
+  .atvu-section h3 { font-size: 1rem; }
+  .atvu-section h4 { font-size: .9rem; }
+  .atvu-subtitle { color: var(--atvu-muted); font-size: .78rem; margin-top: 3px; }
+  .atvu-eyebrow { display: block; color: var(--atvu-muted); text-transform: uppercase; letter-spacing: .08em; font-size: .63rem; font-weight: 800; margin-bottom: 2px; }
+  .atvu-toolbar { display: flex; flex-wrap: wrap; gap: 7px; }
+
+  .atvu-button { border: 1px solid var(--atvu-border); background: var(--atvu-surface-soft); color: var(--atvu-text); border-radius: 8px; padding: 7px 10px; cursor: pointer; font-weight: 700; font-size: .76rem; }
+  .atvu-button:hover:not(:disabled) { border-color: var(--atvu-primary); color: var(--atvu-primary); }
+  .atvu-button:disabled { opacity: .52; cursor: not-allowed; }
+  .atvu-button-primary { color: #fff; background: var(--atvu-primary); border-color: var(--atvu-primary); }
+  .atvu-button-primary:hover:not(:disabled) { background: var(--atvu-primary-hover); border-color: var(--atvu-primary-hover); color: #fff; }
+  .atvu-button-danger { color: var(--atvu-danger); border-color: var(--atvu-danger); background: transparent; }
+
+  .atvu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 11px; }
+  .atvu-device-card { color: var(--atvu-text); background: var(--atvu-surface-soft); border: 1px solid var(--atvu-border); border-radius: 12px; padding: 14px; min-width: 0; }
+  .atvu-device-card:hover { border-color: color-mix(in srgb, var(--atvu-primary) 58%, var(--atvu-border)); }
+  .atvu-device-head { display: flex; gap: 10px; align-items: flex-start; }
+  .atvu-tv-icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 10px; color: var(--atvu-primary); background: var(--atvu-primary-soft); }
+  .atvu-tv-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .atvu-device-title { min-width: 0; flex: 1; }
+  .atvu-device-title h4 { margin: 0; color: var(--atvu-text); font-size: .98rem; overflow-wrap: anywhere; }
+  .atvu-device-model { color: var(--atvu-muted); font-size: .75rem; margin-top: 2px; overflow-wrap: anywhere; }
+  .atvu-badges { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; }
+  .atvu-badge { border-radius: 999px; padding: 3px 7px; font-size: .66rem; font-weight: 800; background: var(--atvu-surface); color: var(--atvu-muted); border: 1px solid var(--atvu-border); }
+  .atvu-badge-success { background: var(--atvu-success-soft); color: var(--atvu-success); border-color: transparent; }
+  .atvu-badge-warning { background: var(--atvu-warning-soft); color: var(--atvu-warning); border-color: transparent; }
+  .atvu-badge-danger { background: var(--atvu-danger-soft); color: var(--atvu-danger); border-color: transparent; }
+  .atvu-badge-primary { background: var(--atvu-primary-soft); color: var(--atvu-primary); border-color: transparent; }
+  .atvu-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .atvu-fact { border-top: 1px solid var(--atvu-border); padding-top: 7px; min-width: 0; }
+  .atvu-fact span { display: block; color: var(--atvu-muted); font-size: .64rem; text-transform: uppercase; letter-spacing: .04em; }
+  .atvu-fact strong { display: block; color: var(--atvu-text); font-size: .75rem; margin-top: 2px; overflow-wrap: anywhere; font-weight: 650; }
+  .atvu-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .71rem !important; }
+  .atvu-device-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .atvu-txt { margin-top: 9px; color: var(--atvu-muted); font-size: .69rem; overflow-wrap: anywhere; }
+  .atvu-test-result { margin-top: 9px; padding: 8px; border-radius: 8px; color: var(--atvu-success); background: var(--atvu-success-soft); font-size: .72rem; }
+
+  .atvu-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .atvu-step { border: 1px solid var(--atvu-border); border-radius: 10px; padding: 10px; background: var(--atvu-surface-soft); }
+  .atvu-step-number { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--atvu-primary-soft); color: var(--atvu-primary); font-weight: 800; font-size: .7rem; margin-bottom: 6px; }
+  .atvu-step-done .atvu-step-number { background: var(--atvu-success-soft); color: var(--atvu-success); }
+  .atvu-step strong { display: block; color: var(--atvu-text); font-size: .75rem; }
+  .atvu-step span { display: block; color: var(--atvu-muted); font-size: .67rem; margin-top: 2px; }
+  .atvu-callout { border-left: 4px solid var(--atvu-primary); border-radius: 8px; padding: 10px 12px; background: var(--atvu-primary-soft); color: var(--atvu-text); font-size: .76rem; }
+  .atvu-callout-warning { border-left-color: var(--atvu-warning); background: var(--atvu-warning-soft); }
+
+  .atvu-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+  .atvu-field { min-width: 0; }
+  .atvu-field-wide { grid-column: 1 / -1; }
+  .atvu-field label { display: block; color: var(--atvu-text); font-size: .73rem; font-weight: 750; margin-bottom: 4px; }
+  .atvu-help { display: block; color: var(--atvu-muted); font-size: .66rem; margin-top: 4px; }
+  .atvu-input { width: 100%; border: 1px solid var(--atvu-border); color: var(--atvu-text); background: var(--atvu-surface-soft); border-radius: 8px; padding: 8px 9px; outline: none; }
+  .atvu-input:focus { border-color: var(--atvu-primary); box-shadow: 0 0 0 3px var(--atvu-primary-soft); }
+  .atvu-input[readonly] { opacity: .72; }
+  .atvu-check { display: flex; gap: 8px; align-items: flex-start; color: var(--atvu-text); font-size: .76rem; }
+  .atvu-check input { margin-top: 3px; }
+  .atvu-input-row { display: grid; grid-template-columns: 1fr 1.4fr 70px auto; gap: 6px; margin-bottom: 7px; }
+  .atvu-divider { border: 0; border-top: 1px solid var(--atvu-border); margin: 14px 0; }
+  .atvu-pair-code { max-width: 220px; text-transform: uppercase; letter-spacing: .28em; font-size: 1.1rem; font-weight: 800; text-align: center; }
+  .atvu-pre { max-height: 310px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: var(--atvu-text); background: var(--atvu-surface-soft); border: 1px solid var(--atvu-border); border-radius: 9px; padding: 10px; font-size: .7rem; }
+  .atvu-empty { text-align: center; padding: 22px 12px; color: var(--atvu-muted); background: var(--atvu-surface-soft); border: 1px dashed var(--atvu-border); border-radius: 10px; }
+  .atvu-kv { display: grid; grid-template-columns: minmax(110px, .8fr) 1.5fr; gap: 7px 12px; }
+  .atvu-kv dt { color: var(--atvu-muted); font-size: .7rem; }
+  .atvu-kv dd { margin: 0; color: var(--atvu-text); font-size: .74rem; overflow-wrap: anywhere; }
+  .atvu-footer { padding: 0 16px 16px; color: var(--atvu-muted); font-size: .68rem; text-align: center; }
+
+  @media (max-width: 620px) {
+    .atvu-hero-row, .atvu-section-header { flex-direction: column; }
+    .atvu-hero-actions { justify-content: flex-start; }
+    .atvu-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .atvu-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .atvu-form-grid { grid-template-columns: 1fr; }
+    .atvu-field-wide { grid-column: auto; }
+    .atvu-input-row { grid-template-columns: 1fr; padding: 9px; border: 1px solid var(--atvu-border); border-radius: 9px; }
+  }
 </style>
 
-<div class="mb-3">
-  <h4 class="mb-1">AndroidTV Ultimate</h4>
-  <div class="atvu-muted">Local Remote Service v2 control. Pairing certificates never leave Homebridge.</div>
+<div id="atvuApp" class="atvu-shell" data-theme="auto">
+  <header class="atvu-hero">
+    <div class="atvu-hero-row">
+      <div class="atvu-brand">
+        <div class="atvu-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"></rect><path d="m8 2 4 3 4-3M9 21h6"></path></svg>
+        </div>
+        <div>
+          <h2>AndroidTV Ultimate</h2>
+          <p>Discover, pair, configure, monitor, and protect every television.</p>
+        </div>
+      </div>
+      <div class="atvu-hero-actions">
+        <button id="atvuPackageButton" class="atvu-hero-button" type="button">Package details</button>
+        <button id="atvuBugButton" class="atvu-hero-button" type="button">Report a bug</button>
+        <select id="atvuTheme" class="atvu-theme-select" aria-label="Color theme">
+          <option value="auto">Auto theme</option>
+          <option value="light">Light theme</option>
+          <option value="dark">Dark theme</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <div class="atvu-stats" aria-label="Plugin summary">
+    <div class="atvu-stat"><strong id="atvuDiscoveredCount">0</strong><span>Discovered TVs</span></div>
+    <div class="atvu-stat"><strong id="atvuConfiguredCount">0</strong><span>Configured</span></div>
+    <div class="atvu-stat"><strong id="atvuPairedCount">0</strong><span>Paired</span></div>
+    <div class="atvu-stat"><strong id="atvuOnlineCount">0</strong><span>Online now</span></div>
+  </div>
+
+  <nav class="atvu-tabs" role="tablist" aria-label="Plugin settings">
+    <button class="atvu-tab" type="button" role="tab" aria-selected="true" data-atvu-tab="dashboard">Dashboard</button>
+    <button class="atvu-tab" type="button" role="tab" aria-selected="false" data-atvu-tab="devices">Devices</button>
+    <button class="atvu-tab" type="button" role="tab" aria-selected="false" data-atvu-tab="settings">Settings</button>
+    <button class="atvu-tab" type="button" role="tab" aria-selected="false" data-atvu-tab="tools">Tools & Support</button>
+  </nav>
+
+  <main>
+    <section id="atvuPanelDashboard" class="atvu-panel" role="tabpanel" data-atvu-panel="dashboard">
+      <div class="atvu-section">
+        <div class="atvu-section-header">
+          <div><h3>Setup journey</h3><div class="atvu-subtitle">A clear path from discovery to a working HomeKit television.</div></div>
+          <button id="atvuDashboardScan" class="atvu-button atvu-button-primary" type="button">Scan network</button>
+        </div>
+        <div id="atvuProgress" class="atvu-progress"></div>
+      </div>
+      <div class="atvu-section">
+        <div class="atvu-section-header">
+          <div><h3>Device health</h3><div id="atvuLastUpdated" class="atvu-subtitle">Loading current state…</div></div>
+          <button id="atvuDashboardRefresh" class="atvu-button" type="button">Refresh state</button>
+        </div>
+        <div id="atvuDashboardMessage" class="atvu-callout"></div>
+        <div id="atvuDashboardDevices" class="atvu-grid" style="margin-top:11px"></div>
+      </div>
+    </section>
+
+    <section id="atvuPanelDevices" class="atvu-panel" role="tabpanel" data-atvu-panel="devices" hidden>
+      <div id="atvuPairing" class="atvu-section" hidden>
+        <span class="atvu-eyebrow">Secure pairing</span>
+        <h3>Pair <span id="atvuPairName"></span></h3>
+        <div id="atvuPairEndpoint" class="atvu-subtitle"></div>
+        <p class="atvu-callout">Keep the six-character code visible on the TV. Enter it below; the certificate stays inside Homebridge.</p>
+        <div class="atvu-toolbar">
+          <input id="atvuCode" class="atvu-input atvu-pair-code" maxlength="6" autocomplete="one-time-code" placeholder="A1B2C3">
+          <button id="atvuPairComplete" class="atvu-button atvu-button-primary" type="button">Complete pairing</button>
+          <button id="atvuPairCancel" class="atvu-button" type="button">Cancel</button>
+        </div>
+        <div id="atvuFingerprint" class="atvu-subtitle" style="margin-top:8px"></div>
+      </div>
+
+      <div class="atvu-section">
+        <div class="atvu-section-header">
+          <div><h3>Discovered televisions</h3><div class="atvu-subtitle">TV name and identity come from Android Remote Service v2 mDNS advertisements.</div></div>
+          <div class="atvu-toolbar">
+            <button id="atvuDiscover" class="atvu-button atvu-button-primary" type="button">Scan network</button>
+            <button id="atvuManual" class="atvu-button" type="button">Add manually</button>
+          </div>
+        </div>
+        <div id="atvuDiscoveryState" class="atvu-subtitle" style="margin-bottom:10px"></div>
+        <div id="atvuDiscovered" class="atvu-grid"></div>
+      </div>
+
+      <div class="atvu-section">
+        <div class="atvu-section-header">
+          <div><h3>Configured televisions</h3><div class="atvu-subtitle">Each card maps to one independent HomeKit Television accessory.</div></div>
+          <button id="atvuRefresh" class="atvu-button" type="button">Refresh state</button>
+        </div>
+        <div id="atvuDevices" class="atvu-grid"></div>
+      </div>
+    </section>
+
+    <section id="atvuPanelSettings" class="atvu-panel" role="tabpanel" data-atvu-panel="settings" hidden>
+      <div class="atvu-section">
+        <div class="atvu-section-header">
+          <div><h3>Platform settings</h3><div class="atvu-subtitle">Connection behavior shared by all configured televisions.</div></div>
+          <button id="atvuSaveSettings" class="atvu-button atvu-button-primary" type="button">Save settings</button>
+        </div>
+        <div class="atvu-form-grid">
+          <div class="atvu-field atvu-field-wide"><label for="atvuPlatformName">Platform name</label><input id="atvuPlatformName" class="atvu-input"><span class="atvu-help">Shown in Homebridge logs and configuration.</span></div>
+          <div class="atvu-field"><label for="atvuDiscoveryInterval">mDNS refresh interval</label><input id="atvuDiscoveryInterval" class="atvu-input" type="number" min="15" max="3600"><span class="atvu-help">Seconds between IP-address refresh scans.</span></div>
+          <div class="atvu-field"><label for="atvuGracePeriod">Offline grace period</label><input id="atvuGracePeriod" class="atvu-input" type="number" min="500" max="30000"><span class="atvu-help">Milliseconds before a disconnect becomes offline.</span></div>
+          <label class="atvu-check atvu-field-wide"><input id="atvuDebug" type="checkbox"><span><strong>Debug logging</strong><br><span class="atvu-help">Adds protocol and reconnection details to Homebridge logs.</span></span></label>
+        </div>
+      </div>
+
+      <div id="atvuDeviceEditor" class="atvu-section" hidden>
+        <div class="atvu-section-header">
+          <div><span class="atvu-eyebrow">Device editor</span><h3 id="atvuEditorTitle">Configure television</h3><div class="atvu-subtitle">Friendly identity, network connection, HomeKit profile, Wake-on-LAN, and app inputs.</div></div>
+          <button id="atvuEditorCancel" class="atvu-button" type="button">Close editor</button>
+        </div>
+        <div class="atvu-form-grid">
+          <div class="atvu-field"><label for="atvuEditName">TV name *</label><input id="atvuEditName" class="atvu-input"><span class="atvu-help">This is the name shown in Apple Home.</span></div>
+          <div class="atvu-field"><label for="atvuEditType">HomeKit profile</label><select id="atvuEditType" class="atvu-input"><option value="television">Television</option><option value="settopbox">Set-top box</option></select></div>
+          <div class="atvu-field"><label for="atvuEditManufacturer">Manufacturer</label><input id="atvuEditManufacturer" class="atvu-input" placeholder="Not advertised"></div>
+          <div class="atvu-field"><label for="atvuEditModel">Model</label><input id="atvuEditModel" class="atvu-input" placeholder="Not advertised"></div>
+          <div class="atvu-field"><label for="atvuEditHost">IP address or hostname *</label><input id="atvuEditHost" class="atvu-input atvu-mono"></div>
+          <div class="atvu-field"><label for="atvuEditHostname">mDNS hostname</label><input id="atvuEditHostname" class="atvu-input atvu-mono" placeholder="Automatically discovered"></div>
+          <div class="atvu-field"><label for="atvuEditRemotePort">Remote port</label><input id="atvuEditRemotePort" class="atvu-input" type="number" min="1" max="65535"></div>
+          <div class="atvu-field"><label for="atvuEditPairingPort">Pairing port</label><input id="atvuEditPairingPort" class="atvu-input" type="number" min="1" max="65535"></div>
+          <div class="atvu-field"><label for="atvuEditMac">Wake-on-LAN MAC address</label><input id="atvuEditMac" class="atvu-input atvu-mono" placeholder="AA:BB:CC:DD:EE:FF"></div>
+          <div class="atvu-field"><label for="atvuEditBroadcast">Broadcast address</label><input id="atvuEditBroadcast" class="atvu-input atvu-mono" placeholder="255.255.255.255"></div>
+          <div class="atvu-field atvu-field-wide"><label for="atvuEditId">Stable plugin identity</label><input id="atvuEditId" class="atvu-input atvu-mono" readonly><span class="atvu-help">Kept stable when DHCP changes the TV IP address.</span></div>
+          <div class="atvu-field"><label for="atvuEditDiscoveryId">Discovery hardware identity</label><input id="atvuEditDiscoveryId" class="atvu-input atvu-mono" readonly></div>
+          <div class="atvu-field"><label for="atvuEditServiceName">mDNS service identity</label><input id="atvuEditServiceName" class="atvu-input atvu-mono" readonly></div>
+        </div>
+        <hr class="atvu-divider">
+        <div class="atvu-section-header"><div><h4>App inputs</h4><div class="atvu-subtitle">Expose Android packages or deep links as inputs in Apple Home.</div></div><button id="atvuAddInput" class="atvu-button" type="button">Add app input</button></div>
+        <div id="atvuInputRows"></div>
+        <div class="atvu-toolbar" style="margin-top:12px">
+          <button id="atvuSaveDevice" class="atvu-button atvu-button-primary" type="button">Save television</button>
+          <button id="atvuSaveAndPair" class="atvu-button" type="button">Save & pair</button>
+        </div>
+      </div>
+
+      <div id="atvuNoEditor" class="atvu-empty">Choose <strong>Edit</strong> on a configured TV, <strong>Configure</strong> on a discovered TV, or <strong>Add manually</strong>.</div>
+    </section>
+
+    <section id="atvuPanelTools" class="atvu-panel" role="tabpanel" data-atvu-panel="tools" hidden>
+      <div id="atvuPackageDetails" class="atvu-section">
+        <div class="atvu-section-header"><div><h3>Package details</h3><div class="atvu-subtitle">Installed build, compatibility, runtime, author, and project links.</div></div><span id="atvuVersionBadge" class="atvu-badge atvu-badge-primary">Loading…</span></div>
+        <dl id="atvuPackageGrid" class="atvu-kv"></dl>
+        <div id="atvuPackageLinks" class="atvu-toolbar" style="margin-top:12px"></div>
+      </div>
+
+      <div id="atvuBugReporting" class="atvu-section">
+        <div class="atvu-section-header"><div><h3>Bug reporting</h3><div class="atvu-subtitle">Create a useful report without exposing pairing secrets.</div></div><button id="atvuOpenBug" class="atvu-button atvu-button-primary" type="button">Open GitHub issue</button></div>
+        <div class="atvu-callout">Pairing certificates and private keys are never included. Local addresses, TV names, MAC addresses, hardware IDs, and certificate fingerprints are redacted by default.</div>
+        <label class="atvu-check" style="margin:11px 0"><input id="atvuIncludeNetwork" type="checkbox"><span>Include local network identifiers in diagnostics <strong>only when needed</strong>.</span></label>
+        <div class="atvu-toolbar">
+          <button id="atvuLoadDiagnostics" class="atvu-button" type="button">Generate diagnostics</button>
+          <button id="atvuCopyDiagnostics" class="atvu-button" type="button" disabled>Copy diagnostics</button>
+        </div>
+        <pre id="atvuDiagnostics" class="atvu-pre" style="margin-top:10px" hidden></pre>
+      </div>
+
+      <div class="atvu-section">
+        <div class="atvu-section-header"><div><h3>Encrypted plugin backup</h3><div class="atvu-subtitle">Portable backup of TV configuration, Android pairing credentials, discovery cache, and last-known state.</div></div></div>
+        <div class="atvu-callout atvu-callout-warning">This protects AndroidTV Ultimate. For a complete reinstall, also create a Homebridge backup to preserve the Apple Home bridge identity and every other plugin.</div>
+        <div class="atvu-form-grid" style="margin-top:12px">
+          <div class="atvu-field"><label for="atvuBackupPassphrase">New backup passphrase</label><input id="atvuBackupPassphrase" class="atvu-input" type="password" autocomplete="new-password" minlength="8"><span class="atvu-help">At least 8 characters. It cannot be recovered.</span></div>
+          <div class="atvu-field"><label for="atvuBackupConfirm">Confirm passphrase</label><input id="atvuBackupConfirm" class="atvu-input" type="password" autocomplete="new-password" minlength="8"></div>
+        </div>
+        <button id="atvuExportBackup" class="atvu-button atvu-button-primary" type="button" style="margin-top:10px">Download encrypted backup</button>
+        <hr class="atvu-divider">
+        <div class="atvu-form-grid">
+          <div class="atvu-field"><label for="atvuBackupFile">Encrypted backup file</label><input id="atvuBackupFile" class="atvu-input" type="file" accept="application/json,.json"></div>
+          <div class="atvu-field"><label for="atvuRestorePassphrase">Backup passphrase</label><input id="atvuRestorePassphrase" class="atvu-input" type="password" autocomplete="current-password"></div>
+        </div>
+        <button id="atvuImportBackup" class="atvu-button" type="button" style="margin-top:10px">Validate & restore backup</button>
+      </div>
+
+      <div class="atvu-section">
+        <div class="atvu-section-header"><div><h3>Legacy migration</h3><div class="atvu-subtitle">Preview and import the older androidtv-config.json format. Apple Home identity is not copied.</div></div></div>
+        <div class="atvu-toolbar"><button id="atvuMigrationPreview" class="atvu-button" type="button">Preview legacy data</button><button id="atvuMigrationApply" class="atvu-button atvu-button-primary" type="button" hidden>Import TVs & credentials</button></div>
+        <div id="atvuMigration" class="atvu-subtitle" style="margin-top:8px"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="atvu-footer">Remote Service v2 · Local control · Pairing secrets stay in Homebridge</div>
 </div>
-
-<div class="atvu-grid mb-3">
-  <section class="atvu-card">
-    <h5>Discover TVs</h5>
-    <p class="atvu-muted">Find Android TV and Google TV devices advertised on your LAN.</p>
-    <div class="atvu-actions">
-      <button id="atvuDiscover" class="btn btn-primary btn-sm" type="button">Scan Network</button>
-      <button id="atvuManual" class="btn btn-outline-secondary btn-sm" type="button">Add Manually</button>
-    </div>
-    <div id="atvuDiscovered" class="mt-3"></div>
-  </section>
-
-  <section class="atvu-card">
-    <h5>Migration</h5>
-    <p class="atvu-muted">Preview the old androidtv-config.json. Apple Home identity is never copied.</p>
-    <div class="atvu-actions">
-      <button id="atvuMigrationPreview" class="btn btn-outline-primary btn-sm" type="button">Preview</button>
-      <button id="atvuMigrationApply" class="btn btn-outline-success btn-sm d-none" type="button">Import TVs & Credentials</button>
-    </div>
-    <div id="atvuMigration" class="atvu-muted mt-2"></div>
-  </section>
-</div>
-
-<section id="atvuPairing" class="atvu-card mb-3 d-none">
-  <h5>Pair <span id="atvuPairName"></span></h5>
-  <p class="atvu-muted">Keep the code visible on the TV, enter all six hexadecimal characters, then complete pairing.</p>
-  <div class="input-group" style="max-width: 420px">
-    <input id="atvuCode" class="form-control text-uppercase" maxlength="6" autocomplete="one-time-code" placeholder="A1B2C3">
-    <button id="atvuPairComplete" class="btn btn-primary" type="button">Complete Pairing</button>
-    <button id="atvuPairCancel" class="btn btn-outline-secondary" type="button">Cancel</button>
-  </div>
-  <div id="atvuFingerprint" class="atvu-muted mt-2"></div>
-</section>
-
-<section class="atvu-card mb-3">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <div>
-      <h5>Configured TVs</h5>
-      <div class="atvu-muted">Each row is an independent HomeKit Television accessory.</div>
-    </div>
-    <button id="atvuRefresh" class="btn btn-outline-primary btn-sm" type="button">Refresh</button>
-  </div>
-  <div id="atvuDevices" class="table-responsive"></div>
-</section>
-
-<section class="atvu-card mb-3">
-  <div class="d-flex justify-content-between align-items-center">
-    <div>
-      <h5>Diagnostics</h5>
-      <div class="atvu-muted">Safe to attach to an issue: private keys and certificates are excluded.</div>
-    </div>
-    <button id="atvuLoadDiagnostics" class="btn btn-outline-secondary btn-sm" type="button">Generate</button>
-  </div>
-  <pre id="atvuDiagnostics" class="mt-2 mb-0 d-none"></pre>
-</section>
 
 <script>
   (() => {
     let platform = { platform: 'AndroidTVUltimate', name: 'AndroidTV Ultimate', devices: [] }
+    let snapshot = { paired: [], statuses: [], discovered: [] }
+    let aboutInfo = {}
     let activePairing = null
     let migration = null
+    let editorDevice = null
+    let editorInputs = []
+    let lastUpdatedAt = null
+    let lastDiagnostics = ''
+    const testResults = new Map()
     const byId = id => document.getElementById(id)
     const errorMessage = error => error?.error?.message || error?.message || String(error)
+    const text = value => value === undefined || value === null || value === '' ? 'Not advertised' : String(value)
+    const normalize = value => String(value || '').trim().toLowerCase()
+    const normalizeMac = value => String(value || '').replace(/[^0-9a-f]/gi, '').toLowerCase()
+    const tvIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="13" rx="2"></rect><path d="m8 2 4 3 4-3M9 21h6"></path></svg>'
+
+    function element(tag, className, content) {
+      const node = document.createElement(tag)
+      if (className) node.className = className
+      if (content !== undefined) node.textContent = content
+      return node
+    }
+
+    function formatDate(value) {
+      if (!value) return 'Never'
+      const date = new Date(value)
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString()
+    }
+
+    function relativeTime(value) {
+      if (!value) return 'never seen'
+      const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000))
+      if (seconds < 10) return 'just now'
+      if (seconds < 60) return `${seconds}s ago`
+      const minutes = Math.round(seconds / 60)
+      if (minutes < 60) return `${minutes}m ago`
+      const hours = Math.round(minutes / 60)
+      if (hours < 24) return `${hours}h ago`
+      return `${Math.round(hours / 24)}d ago`
+    }
+
+    function pairedMap() { return new Map((snapshot.paired || []).map(item => [item.deviceId, item])) }
+    function statusMap() { return new Map((snapshot.statuses || []).map(item => [item.deviceId, item])) }
+
+    function findConfigured(discovered) {
+      const aliases = new Set([discovered.id, ...(discovered.aliases || [])].filter(Boolean))
+      return (platform.devices || []).find(device => aliases.has(device.id)
+        || (device.discoveryId && normalize(device.discoveryId) === normalize(discovered.discoveryId))
+        || (device.mac && normalizeMac(device.mac) === normalizeMac(discovered.mac))
+        || (device.serviceName && normalize(device.serviceName) === normalize(discovered.serviceName))
+        || (device.hostname && normalize(device.hostname) === normalize(discovered.hostname)))
+    }
+
+    function findDiscovered(device) {
+      return (snapshot.discovered || []).find(item => item.id === device.id
+        || (item.aliases || []).includes(device.id)
+        || (device.discoveryId && normalize(device.discoveryId) === normalize(item.discoveryId))
+        || (device.mac && normalizeMac(device.mac) === normalizeMac(item.mac))
+        || (device.serviceName && normalize(device.serviceName) === normalize(item.serviceName))
+        || (device.hostname && normalize(device.hostname) === normalize(item.hostname)))
+    }
+
+    function isRecentlySeen(device) {
+      const interval = Math.max(60, Number(platform.discoveryIntervalSeconds || 60) * 2)
+      return Boolean(device.lastSeen && Date.now() - new Date(device.lastSeen).getTime() < interval * 1000)
+    }
+
+    function badge(label, tone = '') {
+      return element('span', `atvu-badge${tone ? ` atvu-badge-${tone}` : ''}`, label)
+    }
+
+    function fact(label, value, mono = false) {
+      const wrapper = element('div', 'atvu-fact')
+      wrapper.append(element('span', '', label), element('strong', mono ? 'atvu-mono' : '', text(value)))
+      return wrapper
+    }
+
+    function action(label, handler, primary = false) {
+      const button = element('button', `atvu-button${primary ? ' atvu-button-primary' : ''}`, label)
+      button.type = 'button'
+      button.addEventListener('click', handler)
+      return button
+    }
+
+    function toConfig(device) {
+      return {
+        id: device.id,
+        discoveryId: device.discoveryId,
+        name: device.name || device.hostname || device.host,
+        host: device.host,
+        remotePort: device.port || device.remotePort || 6466,
+        pairingPort: device.pairingPort || 6467,
+        serviceName: device.serviceName,
+        hostname: device.hostname,
+        mac: device.mac,
+        model: device.model,
+        manufacturer: device.manufacturer,
+        deviceType: device.deviceType || 'television',
+        inputs: device.inputs || [],
+      }
+    }
+
+    function mergedDevice(configured, discovered) {
+      return {
+        ...discovered,
+        ...configured,
+        name: configured?.name || discovered?.name,
+        host: discovered?.host || configured?.host,
+        remotePort: discovered?.port || configured?.remotePort,
+        discoveryId: configured?.discoveryId || discovered?.discoveryId,
+        serviceName: configured?.serviceName || discovered?.serviceName,
+        hostname: configured?.hostname || discovered?.hostname,
+        mac: configured?.mac || discovered?.mac,
+        model: configured?.model || discovered?.model,
+        manufacturer: configured?.manufacturer || discovered?.manufacturer,
+      }
+    }
+
+    function createDeviceCard(device, mode = 'discovered', compact = false) {
+      const configured = mode === 'configured' ? device : findConfigured(device)
+      const discovered = mode === 'configured' ? findDiscovered(device) : device
+      const merged = mergedDevice(configured || toConfig(device), discovered)
+      const pairing = configured ? pairedMap().get(configured.id) : undefined
+      const status = configured ? statusMap().get(configured.id) : undefined
+      const card = element('article', 'atvu-device-card')
+      const head = element('div', 'atvu-device-head')
+      const icon = element('div', 'atvu-tv-icon'); icon.innerHTML = tvIcon
+      const title = element('div', 'atvu-device-title')
+      title.append(element('span', 'atvu-eyebrow', 'TV name'), element('h4', '', merged.name || 'Unnamed Android TV'))
+      title.append(element('div', 'atvu-device-model', `${merged.manufacturer || 'Android TV / Google TV'} · ${merged.model || 'Model not advertised'}`))
+      head.append(icon, title); card.append(head)
+
+      const badges = element('div', 'atvu-badges')
+      if (discovered) badges.append(badge(isRecentlySeen(discovered) ? 'Seen recently' : 'Cached / offline', isRecentlySeen(discovered) ? 'success' : 'warning'))
+      if (configured) badges.append(badge('Configured', 'primary'))
+      badges.append(badge(pairing ? 'Paired' : 'Not paired', pairing ? 'success' : 'warning'))
+      if (status) badges.append(badge(status.connection === 'online' ? (status.power ? 'On' : 'Standby') : 'Offline', status.connection === 'online' ? 'success' : ''))
+      card.append(badges)
+
+      const facts = element('div', 'atvu-facts')
+      facts.append(
+        fact('IP / host', status?.host || merged.host, true),
+        fact('Remote / pairing ports', `${merged.remotePort || merged.port || 6466} / ${merged.pairingPort || 6467}`, true),
+        fact('mDNS hostname', merged.hostname, true),
+        fact('Hardware / MAC ID', merged.mac || merged.discoveryId, true),
+      )
+      if (!compact) {
+        facts.append(
+          fact('mDNS service', merged.serviceName, true),
+          fact('Stable plugin ID', configured?.id || merged.id, true),
+          fact('First discovered', formatDate(discovered?.firstSeen)),
+          fact('Last seen', discovered?.lastSeen ? `${formatDate(discovered.lastSeen)} (${relativeTime(discovered.lastSeen)})` : status?.lastSeen ? formatDate(status.lastSeen) : 'Never'),
+        )
+        if (mode === 'configured') {
+          facts.append(
+            fact('HomeKit profile', merged.deviceType === 'settopbox' ? 'Set-top box' : 'Television'),
+            fact('App inputs', (merged.inputs || []).length),
+            fact('Wake-on-LAN', merged.mac ? `Ready via ${merged.broadcastAddress || '255.255.255.255'}` : 'MAC address required'),
+            fact('Paired since', pairing ? formatDate(pairing.pairedAt) : 'Not paired'),
+            fact('Current app', status?.currentApp || 'Not reported'),
+            fact('Audio', status?.volume === undefined ? 'Not reported' : `${status.volume}%${status.muted ? ' · muted' : ''}`),
+          )
+        }
+      }
+      card.append(facts)
+
+      if (!compact && discovered?.txt && Object.keys(discovered.txt).length) {
+        const txtLine = Object.entries(discovered.txt).map(([key, value]) => `${key}=${value || '(present)'}`).join(' · ')
+        card.append(element('div', 'atvu-txt atvu-mono', `Advertised TXT: ${txtLine}`))
+      }
+
+      const actions = element('div', 'atvu-device-actions')
+      const pairingDevice = configured || toConfig(merged)
+      actions.append(action(pairing ? 'Re-pair' : 'Pair TV', () => beginPair(pairingDevice), !pairing))
+      actions.append(action(configured ? 'Edit' : 'Configure', () => openEditor(pairingDevice)))
+      if (configured && pairing) actions.append(action('Test connection', event => testConnection(configured, event.currentTarget)))
+      card.append(actions)
+      if (configured && testResults.has(configured.id)) card.append(element('div', 'atvu-test-result', testResults.get(configured.id)))
+      return card
+    }
+
+    function renderStats() {
+      byId('atvuDiscoveredCount').textContent = String((snapshot.discovered || []).length)
+      byId('atvuConfiguredCount').textContent = String((platform.devices || []).length)
+      byId('atvuPairedCount').textContent = String((snapshot.paired || []).filter(item => (platform.devices || []).some(device => device.id === item.deviceId)).length)
+      byId('atvuOnlineCount').textContent = String((snapshot.statuses || []).filter(item => item.connection === 'online').length)
+    }
+
+    function renderProgress() {
+      const configured = (platform.devices || []).length > 0
+      const paired = (snapshot.paired || []).some(item => (platform.devices || []).some(device => device.id === item.deviceId))
+      const online = (snapshot.statuses || []).some(item => item.connection === 'online')
+      const steps = [
+        ['Discover', 'Find the TV on your LAN', (snapshot.discovered || []).length > 0],
+        ['Configure', 'Confirm name and identity', configured],
+        ['Pair', 'Enter the code from TV', paired],
+        ['Control', 'Online in Apple Home', online],
+      ]
+      const container = byId('atvuProgress'); container.replaceChildren()
+      steps.forEach(([title, detail, done], index) => {
+        const step = element('div', `atvu-step${done ? ' atvu-step-done' : ''}`)
+        step.append(element('div', 'atvu-step-number', done ? '✓' : String(index + 1)), element('strong', '', title), element('span', '', detail))
+        container.append(step)
+      })
+    }
+
+    function renderDashboard() {
+      const message = byId('atvuDashboardMessage')
+      const configured = platform.devices || []
+      const online = (snapshot.statuses || []).filter(item => item.connection === 'online').length
+      if (!snapshot.discovered.length) message.textContent = 'No TV is cached yet. Run a network scan while the TV is powered on and connected to the same LAN.'
+      else if (!configured.length) message.textContent = `${snapshot.discovered.length} TV${snapshot.discovered.length === 1 ? '' : 's'} found. Open Devices, verify the TV name and identity, then pair it.`
+      else if (!online) message.textContent = 'Configured TVs are currently offline or Homebridge has not restarted since pairing. Cached identities remain available.'
+      else message.textContent = `${online} configured TV${online === 1 ? ' is' : 's are'} connected through Remote Service v2.`
+      byId('atvuLastUpdated').textContent = lastUpdatedAt ? `State refreshed ${relativeTime(lastUpdatedAt)} · ${formatDate(lastUpdatedAt)}` : 'Loading current state…'
+      const container = byId('atvuDashboardDevices'); container.replaceChildren()
+      const candidates = configured.length ? configured.slice(0, 4) : snapshot.discovered.slice(0, 4)
+      if (!candidates.length) container.append(element('div', 'atvu-empty', 'Run a network scan to discover your first television.'))
+      else candidates.forEach(device => container.append(createDeviceCard(device, configured.length ? 'configured' : 'discovered', true)))
+    }
+
+    function renderDiscovery() {
+      const container = byId('atvuDiscovered'); container.replaceChildren()
+      const devices = snapshot.discovered || []
+      if (!devices.length) container.append(element('div', 'atvu-empty', 'No Remote Service v2 television is cached. Power on the TV and scan the local network.'))
+      else devices.forEach(device => container.append(createDeviceCard(device, 'discovered')))
+      byId('atvuDiscoveryState').textContent = devices.length
+        ? `${devices.length} cached device${devices.length === 1 ? '' : 's'} · names are shown exactly as advertised by the TV · offline devices remain cached`
+        : 'No cached discovery results yet.'
+    }
+
+    function renderConfigured() {
+      const container = byId('atvuDevices'); container.replaceChildren()
+      const devices = platform.devices || []
+      if (!devices.length) container.append(element('div', 'atvu-empty', 'No TVs configured yet. Pair a discovered TV or add one manually.'))
+      else devices.forEach(device => container.append(createDeviceCard(device, 'configured')))
+    }
+
+    function renderAll() {
+      renderStats(); renderProgress(); renderDashboard(); renderDiscovery(); renderConfigured(); homebridge.fixScrollHeight()
+    }
+
+    function selectTab(name) {
+      document.querySelectorAll('[data-atvu-tab]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.atvuTab === name)))
+      document.querySelectorAll('[data-atvu-panel]').forEach(panel => { panel.hidden = panel.dataset.atvuPanel !== name })
+      homebridge.fixScrollHeight()
+    }
 
     async function savePlatform() {
+      platform.platform = 'AndroidTVUltimate'
+      platform.devices ||= []
       await homebridge.updatePluginConfig([platform])
       await homebridge.savePluginConfig()
     }
 
-    function deviceFromPrompts() {
-      const name = window.prompt('TV name')?.trim()
-      if (!name) return null
-      const host = window.prompt('IP address or hostname')?.trim()
-      if (!host) return null
-      return { id: `${name}-${host}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, host, remotePort: 6466, pairingPort: 6467, deviceType: 'television', inputs: [] }
+    async function refresh(showErrors = true) {
+      try {
+        snapshot = await homebridge.request('/status')
+        snapshot.paired ||= []; snapshot.statuses ||= []; snapshot.discovered ||= []
+        lastUpdatedAt = new Date().toISOString()
+        renderAll()
+      } catch (error) {
+        if (showErrors) homebridge.toast.error(errorMessage(error), 'Could not refresh device state')
+      }
+    }
+
+    async function discover() {
+      const buttons = [byId('atvuDiscover'), byId('atvuDashboardScan')]
+      buttons.forEach(button => { button.disabled = true; button.textContent = 'Scanning…' })
+      byId('atvuDiscoveryState').textContent = 'Listening for Android Remote Service v2 advertisements…'
+      try {
+        snapshot.discovered = await homebridge.request('/discover')
+        await refresh()
+        selectTab('devices')
+        homebridge.toast.success(`Found ${snapshot.discovered.length} cached television${snapshot.discovered.length === 1 ? '' : 's'}.`, 'Network scan complete')
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Discovery failed')
+      } finally {
+        buttons.forEach((button, index) => { button.disabled = false; button.textContent = index === 0 ? 'Scan network' : 'Scan network' })
+      }
     }
 
     async function beginPair(device) {
-      byId('atvuDiscover').disabled = true
+      selectTab('devices')
+      byId('atvuPairing').hidden = false
+      byId('atvuPairName').textContent = device.name
+      byId('atvuPairEndpoint').textContent = `${device.host}:${device.pairingPort || 6467} · requesting a secure pairing code…`
+      byId('atvuFingerprint').textContent = ''
+      byId('atvuPairComplete').disabled = true
       try {
         const result = await homebridge.request('/pair/start', { device })
         activePairing = { sessionId: result.sessionId, device }
-        byId('atvuPairName').textContent = device.name
+        byId('atvuPairEndpoint').textContent = `${device.host}:${device.pairingPort || 6467} · code is now displayed on the TV`
         byId('atvuFingerprint').textContent = `Client certificate SHA-256: ${result.fingerprint}`
-        byId('atvuPairing').classList.remove('d-none')
+        byId('atvuPairComplete').disabled = false
         byId('atvuCode').focus()
-        homebridge.toast.success('Enter the code displayed on the TV.', 'Pairing started')
       } catch (error) {
+        byId('atvuPairing').hidden = true
         homebridge.toast.error(errorMessage(error), 'Could not start pairing')
       } finally {
-        byId('atvuDiscover').disabled = false
         homebridge.fixScrollHeight()
       }
     }
@@ -114,10 +662,7 @@
     async function completePairing() {
       if (!activePairing) return
       const code = byId('atvuCode').value.replace(/[^0-9a-f]/gi, '').toUpperCase()
-      if (code.length !== 6) {
-        homebridge.toast.error('Enter the six-character code from the TV.', 'Pairing')
-        return
-      }
+      if (code.length !== 6) return homebridge.toast.error('Enter all six hexadecimal characters shown on the TV.', 'Pairing code')
       byId('atvuPairComplete').disabled = true
       try {
         await homebridge.request('/pair/complete', { sessionId: activePairing.sessionId, code })
@@ -125,9 +670,9 @@
         if (index >= 0) platform.devices[index] = activePairing.device
         else platform.devices = [...(platform.devices || []), activePairing.device]
         await savePlatform()
-        homebridge.toast.success('Paired and saved. Restart Homebridge to add the TV.', 'AndroidTV Ultimate')
+        homebridge.toast.success('TV paired and saved. Restart Homebridge to create or refresh the HomeKit accessory.', 'Pairing complete')
         activePairing = null
-        byId('atvuPairing').classList.add('d-none')
+        byId('atvuPairing').hidden = true
         byId('atvuCode').value = ''
         await refresh()
       } catch (error) {
@@ -140,150 +685,245 @@
     async function cancelPairing() {
       if (activePairing) await homebridge.request('/pair/cancel', { sessionId: activePairing.sessionId }).catch(() => undefined)
       activePairing = null
-      byId('atvuPairing').classList.add('d-none')
+      byId('atvuPairing').hidden = true
     }
 
-    function renderDiscovery(devices) {
-      const container = byId('atvuDiscovered')
-      container.replaceChildren()
-      if (!devices.length) {
-        container.textContent = 'No Remote Service v2 devices responded. You can add the TV manually.'
-        container.className = 'atvu-muted mt-3'
-        return
-      }
-      for (const device of devices) {
-        const row = document.createElement('div')
-        row.className = 'd-flex justify-content-between align-items-center border-top py-2'
-        const label = document.createElement('div')
-        const title = document.createElement('div')
-        title.textContent = device.name
-        const detail = document.createElement('small')
-        detail.className = 'atvu-muted'
-        const seen = device.lastSeen ? ` • last seen ${new Date(device.lastSeen).toLocaleString()}` : ''
-        detail.textContent = `${device.host}:${device.port}${seen}`
-        label.append(title, detail)
-        const button = document.createElement('button')
-        button.className = 'btn btn-outline-primary btn-sm'
-        button.textContent = 'Pair'
-        button.addEventListener('click', () => beginPair({
-          id: device.id,
-          discoveryId: device.discoveryId,
-          name: device.name,
-          host: device.host,
-          remotePort: device.port || 6466,
-          pairingPort: 6467,
-          serviceName: device.serviceName,
-          hostname: device.hostname,
-          mac: device.mac,
-          model: device.model,
-          manufacturer: device.manufacturer,
-          deviceType: 'television',
-          inputs: [],
-        }))
-        row.append(label, button)
-        container.append(row)
-      }
-    }
-
-    async function discover() {
-      byId('atvuDiscover').disabled = true
-      byId('atvuDiscovered').textContent = 'Scanning…'
+    async function testConnection(device, button) {
+      button.disabled = true; button.textContent = 'Testing…'
       try {
-        renderDiscovery(await homebridge.request('/discover'))
+        const value = await homebridge.request('/test', { device })
+        testResults.set(device.id, `Verified ${value.protocol} at ${value.host}:${value.port} in ${value.latencyMs} ms · ${formatDate(value.testedAt)}`)
+        homebridge.toast.success(`Connected in ${value.latencyMs} ms.`, device.name)
+        renderAll()
       } catch (error) {
-        byId('atvuDiscovered').textContent = ''
-        homebridge.toast.error(errorMessage(error), 'Discovery failed')
+        homebridge.toast.error(errorMessage(error), 'Connection test failed')
       } finally {
-        byId('atvuDiscover').disabled = false
-        homebridge.fixScrollHeight()
+        button.disabled = false; button.textContent = 'Test connection'
       }
     }
 
-    async function refresh() {
-      const result = await homebridge.request('/status')
-      const pairedIds = new Set(result.paired.map(item => item.deviceId))
-      const statuses = new Map(result.statuses.map(item => [item.deviceId, item]))
-      const wrapper = byId('atvuDevices')
-      wrapper.replaceChildren()
-      if (!(platform.devices || []).length) {
-        wrapper.textContent = 'No TVs configured yet.'
-        wrapper.className = 'atvu-muted'
-        return
+    function setInputValue(id, value) { byId(id).value = value ?? '' }
+
+    function openEditor(device = null) {
+      const base = device ? toConfig(device) : {
+        id: `manual-${Date.now().toString(36)}`,
+        name: '', host: '', remotePort: 6466, pairingPort: 6467,
+        broadcastAddress: '255.255.255.255', deviceType: 'television', inputs: [],
       }
-      wrapper.className = 'table-responsive'
-      const table = document.createElement('table')
-      table.className = 'table table-sm align-middle mb-0'
-      table.innerHTML = '<thead><tr><th>TV</th><th>Pairing</th><th>State</th><th>App inputs</th><th></th></tr></thead>'
-      const body = document.createElement('tbody')
-      for (const device of platform.devices) {
-        const status = statuses.get(device.id)
-        const row = document.createElement('tr')
-        const identity = document.createElement('td')
-        const name = document.createElement('div'); name.textContent = device.name
-        const host = document.createElement('small'); host.className = 'atvu-muted'; host.textContent = status?.host || device.host
-        identity.append(name, host)
-        const pairingCell = document.createElement('td')
-        const badge = document.createElement('span')
-        badge.className = `atvu-status ${pairedIds.has(device.id) ? 'atvu-online' : 'atvu-unpaired'}`
-        badge.textContent = pairedIds.has(device.id) ? 'Paired' : 'Not paired'
-        pairingCell.append(badge)
-        const stateCell = document.createElement('td')
-        const state = document.createElement('span')
-        state.className = `atvu-status ${status?.connection === 'online' ? 'atvu-online' : 'atvu-offline'}`
-        state.textContent = status?.connection === 'online' ? (status.power ? 'On' : 'Standby') : 'Off / offline'
-        stateCell.append(state)
-        const appsCell = document.createElement('td'); appsCell.textContent = String((device.inputs || []).length)
-        const actions = document.createElement('td')
-        const group = document.createElement('div'); group.className = 'atvu-actions'
-        const pair = document.createElement('button'); pair.className = 'btn btn-outline-primary btn-sm'; pair.textContent = pairedIds.has(device.id) ? 'Re-pair' : 'Pair'; pair.addEventListener('click', () => beginPair(device))
-        const test = document.createElement('button'); test.className = 'btn btn-outline-secondary btn-sm'; test.textContent = 'Test'; test.disabled = !pairedIds.has(device.id); test.addEventListener('click', async () => {
-          test.disabled = true
-          try { const value = await homebridge.request('/test', { device }); homebridge.toast.success(`Connected in ${value.latencyMs} ms.`, 'Remote Service v2') }
-          catch (error) { homebridge.toast.error(errorMessage(error), 'Connection test failed') }
-          finally { test.disabled = false }
-        })
-        group.append(pair, test); actions.append(group)
-        row.append(identity, pairingCell, stateCell, appsCell, actions); body.append(row)
+      editorDevice = { ...base }
+      editorInputs = (base.inputs || []).map(input => ({ ...input }))
+      byId('atvuEditorTitle').textContent = base.name ? `Configure ${base.name}` : 'Add television manually'
+      setInputValue('atvuEditName', base.name); setInputValue('atvuEditType', base.deviceType || 'television')
+      setInputValue('atvuEditManufacturer', base.manufacturer); setInputValue('atvuEditModel', base.model)
+      setInputValue('atvuEditHost', base.host); setInputValue('atvuEditHostname', base.hostname)
+      setInputValue('atvuEditRemotePort', base.remotePort || 6466); setInputValue('atvuEditPairingPort', base.pairingPort || 6467)
+      setInputValue('atvuEditMac', base.mac); setInputValue('atvuEditBroadcast', base.broadcastAddress || '255.255.255.255')
+      setInputValue('atvuEditId', base.id); setInputValue('atvuEditDiscoveryId', base.discoveryId); setInputValue('atvuEditServiceName', base.serviceName)
+      renderInputRows()
+      byId('atvuDeviceEditor').hidden = false; byId('atvuNoEditor').hidden = true
+      selectTab('settings')
+    }
+
+    function renderInputRows() {
+      const container = byId('atvuInputRows'); container.replaceChildren()
+      if (!editorInputs.length) container.append(element('div', 'atvu-empty', 'No app inputs configured. Add packages such as YouTube or a deep-link URI when needed.'))
+      editorInputs.forEach((input, index) => {
+        const row = element('div', 'atvu-input-row')
+        const name = element('input', 'atvu-input'); name.placeholder = 'Name'; name.value = input.name || ''; name.addEventListener('input', () => { editorInputs[index].name = name.value })
+        const uri = element('input', 'atvu-input'); uri.placeholder = 'Package or URI'; uri.value = input.uri || ''; uri.addEventListener('input', () => { editorInputs[index].uri = uri.value })
+        const identifier = element('input', 'atvu-input'); identifier.type = 'number'; identifier.min = '1'; identifier.max = '255'; identifier.placeholder = 'ID'; identifier.value = input.identifier || ''; identifier.addEventListener('input', () => { editorInputs[index].identifier = identifier.value ? Number(identifier.value) : undefined })
+        const remove = action('Remove', () => { editorInputs.splice(index, 1); renderInputRows() }); remove.classList.add('atvu-button-danger')
+        row.append(name, uri, identifier, remove); container.append(row)
+      })
+      homebridge.fixScrollHeight()
+    }
+
+    function collectEditorDevice() {
+      if (!editorDevice) throw new Error('Open a device editor first')
+      const name = byId('atvuEditName').value.trim()
+      const host = byId('atvuEditHost').value.trim()
+      if (!name || !host) throw new Error('TV name and IP address or hostname are required')
+      const inputs = editorInputs.filter(input => input.name?.trim() && input.uri?.trim()).map(input => ({ ...input, name: input.name.trim(), uri: input.uri.trim() }))
+      const optional = id => byId(id).value.trim() || undefined
+      return {
+        ...editorDevice,
+        id: byId('atvuEditId').value.trim() || editorDevice.id,
+        name, host,
+        deviceType: byId('atvuEditType').value,
+        manufacturer: optional('atvuEditManufacturer'), model: optional('atvuEditModel'), hostname: optional('atvuEditHostname'),
+        remotePort: Number(byId('atvuEditRemotePort').value || 6466), pairingPort: Number(byId('atvuEditPairingPort').value || 6467),
+        mac: optional('atvuEditMac'), broadcastAddress: optional('atvuEditBroadcast'), inputs,
       }
-      table.append(body); wrapper.append(table); homebridge.fixScrollHeight()
+    }
+
+    async function saveEditedDevice(pairAfter = false) {
+      try {
+        const device = collectEditorDevice()
+        const index = (platform.devices || []).findIndex(item => item.id === device.id)
+        if (index >= 0) platform.devices[index] = device
+        else platform.devices = [...(platform.devices || []), device]
+        await savePlatform()
+        editorDevice = device
+        homebridge.toast.success('Television configuration saved. Restart Homebridge to apply accessory changes.', device.name)
+        await refresh()
+        if (pairAfter) await beginPair(device)
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Could not save television')
+      }
+    }
+
+    function loadGeneralSettings() {
+      setInputValue('atvuPlatformName', platform.name || 'AndroidTV Ultimate')
+      setInputValue('atvuDiscoveryInterval', platform.discoveryIntervalSeconds ?? 60)
+      setInputValue('atvuGracePeriod', platform.disconnectGraceMs ?? 2500)
+      byId('atvuDebug').checked = platform.debug === true
+    }
+
+    async function saveGeneralSettings() {
+      platform.name = byId('atvuPlatformName').value.trim() || 'AndroidTV Ultimate'
+      platform.discoveryIntervalSeconds = Math.max(15, Math.min(3600, Number(byId('atvuDiscoveryInterval').value || 60)))
+      platform.disconnectGraceMs = Math.max(500, Math.min(30000, Number(byId('atvuGracePeriod').value || 2500)))
+      platform.debug = byId('atvuDebug').checked
+      await savePlatform()
+      homebridge.toast.success('Platform settings saved. Restart Homebridge to apply runtime changes.', 'AndroidTV Ultimate')
+    }
+
+    function renderPackageDetails() {
+      byId('atvuVersionBadge').textContent = aboutInfo.version ? `v${aboutInfo.version}` : 'Unknown version'
+      const rows = [
+        ['Package', aboutInfo.name], ['Display name', aboutInfo.displayName], ['Description', aboutInfo.description],
+        ['License', aboutInfo.license], ['Homebridge support', aboutInfo.engines?.homebridge], ['Node.js support', aboutInfo.engines?.node],
+        ['Runtime', `${aboutInfo.runtime?.node || 'Unknown'} · ${aboutInfo.runtime?.platform || 'Unknown'} ${aboutInfo.runtime?.architecture || ''}`],
+        ['Author', typeof aboutInfo.author === 'object' ? aboutInfo.author?.name : aboutInfo.author],
+      ]
+      const grid = byId('atvuPackageGrid'); grid.replaceChildren()
+      rows.forEach(([label, value]) => { grid.append(element('dt', '', label), element('dd', '', text(value))) })
+      const links = byId('atvuPackageLinks'); links.replaceChildren()
+      const external = (label, url) => {
+        if (!url) return
+        const anchor = element('a', 'atvu-button', label); anchor.href = url; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer'; links.append(anchor)
+      }
+      external('npm package', aboutInfo.name ? `https://www.npmjs.com/package/${aboutInfo.name}` : undefined)
+      external('GitHub repository', aboutInfo.repository)
+      external('Release notes', aboutInfo.repository ? `${aboutInfo.repository}/releases` : undefined)
+      external('Documentation', aboutInfo.homepage)
+    }
+
+    async function generateDiagnostics() {
+      byId('atvuLoadDiagnostics').disabled = true
+      try {
+        const value = await homebridge.request('/diagnostics', { includeNetworkIdentifiers: byId('atvuIncludeNetwork').checked })
+        lastDiagnostics = JSON.stringify(value, null, 2)
+        byId('atvuDiagnostics').textContent = lastDiagnostics; byId('atvuDiagnostics').hidden = false
+        byId('atvuCopyDiagnostics').disabled = false
+        homebridge.fixScrollHeight()
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Diagnostics failed')
+      } finally { byId('atvuLoadDiagnostics').disabled = false }
+    }
+
+    async function copyText(value) {
+      try { await navigator.clipboard.writeText(value) }
+      catch {
+        const area = document.createElement('textarea'); area.value = value; area.style.position = 'fixed'; area.style.opacity = '0'; document.body.append(area); area.select(); document.execCommand('copy'); area.remove()
+      }
+    }
+
+    function openBugReport() {
+      const base = aboutInfo.bugs || (aboutInfo.repository ? `${aboutInfo.repository}/issues` : 'https://github.com/tharunpkarun/homebridge-androidtv-ultimate/issues')
+      const url = new URL(base.endsWith('/issues') ? `${base}/new` : base)
+      url.searchParams.set('template', 'bug_report.yml')
+      url.searchParams.set('title', `[Bug] ${aboutInfo.displayName || 'AndroidTV Ultimate'}: `)
+      url.searchParams.set('body', `### What happened?\n\n\n### Steps to reproduce\n1. \n2. \n3. \n\n### Expected behavior\n\n\n### Environment\n- Plugin: ${aboutInfo.name || 'homebridge-androidtv-ultimate'} v${aboutInfo.version || 'unknown'}\n- Node.js: ${aboutInfo.runtime?.node || 'unknown'}\n- Platform: ${aboutInfo.runtime?.platform || 'unknown'} ${aboutInfo.runtime?.architecture || ''}\n- Homebridge version: \n- TV manufacturer/model: \n\n### Diagnostics\nGenerate and paste the privacy-safe diagnostics from Tools & Support. Do not paste credentials or private keys.`)
+      window.open(url.toString(), '_blank', 'noopener,noreferrer')
     }
 
     async function previewMigration() {
-      migration = await homebridge.request('/migration/preview')
-      byId('atvuMigration').textContent = migration.found
-        ? `Found ${migration.devices.length} TV(s), ${migration.credentials.length} reusable pairing credential(s). ${migration.warnings.join(' ')}`
-        : `No legacy file found at ${migration.source}.`
-      byId('atvuMigrationApply').classList.toggle('d-none', !migration.found || migration.devices.length === 0)
-      homebridge.fixScrollHeight()
+      try {
+        migration = await homebridge.request('/migration/preview')
+        byId('atvuMigration').textContent = migration.found
+          ? `Found ${migration.devices.length} TV(s), ${migration.credentials.length} reusable pairing credential(s). ${migration.warnings.join(' ')}`
+          : `No legacy file found at ${migration.source}.`
+        byId('atvuMigrationApply').hidden = !migration.found || migration.devices.length === 0
+        homebridge.fixScrollHeight()
+      } catch (error) { homebridge.toast.error(errorMessage(error), 'Migration preview failed') }
     }
 
     async function applyMigration() {
       if (!migration) return
-      const result = await homebridge.request('/migration/apply')
-      const existing = new Set((platform.devices || []).map(item => item.id))
-      platform.devices = [...(platform.devices || []), ...result.devices.filter(item => !existing.has(item.id))]
-      await savePlatform()
-      homebridge.toast.success(`Imported ${result.devices.length} TV(s). Restart Homebridge when ready.`, 'Migration complete')
-      await refresh()
+      try {
+        const result = await homebridge.request('/migration/apply')
+        const existing = new Set((platform.devices || []).map(item => item.id))
+        platform.devices = [...(platform.devices || []), ...result.devices.filter(item => !existing.has(item.id))]
+        await savePlatform(); await refresh()
+        homebridge.toast.success(`Imported ${result.devices.length} TV(s). Restart Homebridge when ready.`, 'Migration complete')
+      } catch (error) { homebridge.toast.error(errorMessage(error), 'Migration failed') }
     }
 
-    byId('atvuDiscover').addEventListener('click', discover)
-    byId('atvuManual').addEventListener('click', () => { const device = deviceFromPrompts(); if (device) beginPair(device) })
-    byId('atvuPairComplete').addEventListener('click', completePairing)
-    byId('atvuPairCancel').addEventListener('click', cancelPairing)
-    byId('atvuRefresh').addEventListener('click', () => refresh().catch(error => homebridge.toast.error(errorMessage(error), 'Refresh failed')))
-    byId('atvuMigrationPreview').addEventListener('click', () => previewMigration().catch(error => homebridge.toast.error(errorMessage(error), 'Migration preview failed')))
-    byId('atvuMigrationApply').addEventListener('click', () => applyMigration().catch(error => homebridge.toast.error(errorMessage(error), 'Migration failed')))
-    byId('atvuLoadDiagnostics').addEventListener('click', async () => {
-      try { const value = await homebridge.request('/diagnostics'); byId('atvuDiagnostics').textContent = JSON.stringify(value, null, 2); byId('atvuDiagnostics').classList.remove('d-none'); homebridge.fixScrollHeight() }
-      catch (error) { homebridge.toast.error(errorMessage(error), 'Diagnostics failed') }
-    })
+    async function exportBackup() {
+      const passphrase = byId('atvuBackupPassphrase').value
+      if (passphrase.length < 8) return homebridge.toast.error('Use a backup passphrase with at least 8 characters.', 'Backup')
+      if (passphrase !== byId('atvuBackupConfirm').value) return homebridge.toast.error('The backup passphrases do not match.', 'Backup')
+      byId('atvuExportBackup').disabled = true
+      try {
+        const backup = await homebridge.request('/backup/export', { config: platform, passphrase })
+        const blob = new Blob([`${JSON.stringify(backup, null, 2)}\n`], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement('a'); anchor.href = url; anchor.download = `androidtv-ultimate-backup-${new Date().toISOString().slice(0, 10)}.json`; anchor.click()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        byId('atvuBackupPassphrase').value = ''; byId('atvuBackupConfirm').value = ''
+        homebridge.toast.success('Encrypted plugin backup downloaded. Store the file and passphrase separately.', 'Backup complete')
+      } catch (error) { homebridge.toast.error(errorMessage(error), 'Backup failed') }
+      finally { byId('atvuExportBackup').disabled = false }
+    }
 
-    homebridge.getPluginConfig().then(config => {
-      platform = config[0] || platform
-      platform.devices ||= []
-      return refresh()
-    }).catch(error => homebridge.toast.error(errorMessage(error), 'Could not load configuration'))
-    homebridge.showSchemaForm()
+    async function importBackup() {
+      const file = byId('atvuBackupFile').files?.[0]
+      const passphrase = byId('atvuRestorePassphrase').value
+      if (!file) return homebridge.toast.error('Select an AndroidTV Ultimate backup file.', 'Restore')
+      if (passphrase.length < 8) return homebridge.toast.error('Enter the backup passphrase.', 'Restore')
+      let backup
+      try { backup = JSON.parse(await file.text()) }
+      catch { return homebridge.toast.error('The selected file is not valid JSON.', 'Restore') }
+      if (!window.confirm('Restore this encrypted plugin backup? Current AndroidTV Ultimate configuration, pairing credentials, discovery cache, and status data will be replaced.')) return
+      byId('atvuImportBackup').disabled = true
+      try {
+        const result = await homebridge.request('/backup/import', { backup, passphrase })
+        platform = result.config; platform.platform = 'AndroidTVUltimate'; platform.devices ||= []
+        await savePlatform(); loadGeneralSettings(); await refresh()
+        byId('atvuRestorePassphrase').value = ''; byId('atvuBackupFile').value = ''
+        homebridge.toast.success(`Restored ${result.restored.devices} TV(s) and ${result.restored.credentials} pairing credential(s). Restart Homebridge now.`, 'Restore complete')
+      } catch (error) { homebridge.toast.error(errorMessage(error), 'Restore failed') }
+      finally { byId('atvuImportBackup').disabled = false }
+    }
+
+    document.querySelectorAll('[data-atvu-tab]').forEach(button => button.addEventListener('click', () => selectTab(button.dataset.atvuTab)))
+    byId('atvuTheme').addEventListener('change', event => { byId('atvuApp').dataset.theme = event.target.value; localStorage.setItem('atvu-theme', event.target.value) })
+    byId('atvuPackageButton').addEventListener('click', () => { selectTab('tools'); byId('atvuPackageDetails').scrollIntoView({ behavior: 'smooth', block: 'start' }) })
+    byId('atvuBugButton').addEventListener('click', () => { selectTab('tools'); byId('atvuBugReporting').scrollIntoView({ behavior: 'smooth', block: 'start' }) })
+    byId('atvuDashboardScan').addEventListener('click', discover); byId('atvuDiscover').addEventListener('click', discover)
+    byId('atvuDashboardRefresh').addEventListener('click', () => refresh()); byId('atvuRefresh').addEventListener('click', () => refresh())
+    byId('atvuManual').addEventListener('click', () => openEditor())
+    byId('atvuPairComplete').addEventListener('click', completePairing); byId('atvuPairCancel').addEventListener('click', cancelPairing)
+    byId('atvuCode').addEventListener('keydown', event => { if (event.key === 'Enter') completePairing() })
+    byId('atvuSaveSettings').addEventListener('click', () => saveGeneralSettings().catch(error => homebridge.toast.error(errorMessage(error), 'Could not save settings')))
+    byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null })
+    byId('atvuAddInput').addEventListener('click', () => { editorInputs.push({ name: '', uri: '' }); renderInputRows() })
+    byId('atvuSaveDevice').addEventListener('click', () => saveEditedDevice(false)); byId('atvuSaveAndPair').addEventListener('click', () => saveEditedDevice(true))
+    byId('atvuLoadDiagnostics').addEventListener('click', generateDiagnostics)
+    byId('atvuCopyDiagnostics').addEventListener('click', async () => { await copyText(lastDiagnostics); homebridge.toast.success('Diagnostics copied to clipboard.', 'Support bundle') })
+    byId('atvuOpenBug').addEventListener('click', openBugReport)
+    byId('atvuMigrationPreview').addEventListener('click', previewMigration); byId('atvuMigrationApply').addEventListener('click', applyMigration)
+    byId('atvuExportBackup').addEventListener('click', exportBackup); byId('atvuImportBackup').addEventListener('click', importBackup)
+
+    const savedTheme = localStorage.getItem('atvu-theme') || 'auto'
+    byId('atvuTheme').value = ['auto', 'light', 'dark'].includes(savedTheme) ? savedTheme : 'auto'
+    byId('atvuApp').dataset.theme = byId('atvuTheme').value
+
+    Promise.all([homebridge.getPluginConfig(), homebridge.request('/about')]).then(async ([config, details]) => {
+      platform = config[0] || platform; platform.devices ||= []; aboutInfo = details || {}
+      loadGeneralSettings(); renderPackageDetails(); await refresh()
+      setInterval(() => { if (!document.hidden) void refresh(false) }, 15000)
+    }).catch(error => homebridge.toast.error(errorMessage(error), 'Could not load AndroidTV Ultimate settings'))
   })()
 </script>

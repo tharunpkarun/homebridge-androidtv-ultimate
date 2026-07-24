@@ -50,6 +50,16 @@ export class DiscoveryCache {
     return this.devices.map(device => ({ ...device, aliases: [...(device.aliases ?? [])], txt: { ...(device.txt ?? {}) } }));
   }
 
+  async replace(devices: CachedAndroidTv[]): Promise<void> {
+    this.devices = devices.map(device => ({
+      ...device,
+      aliases: [...(device.aliases ?? [])],
+      txt: { ...(device.txt ?? {}) },
+    }));
+    this.loaded = true;
+    await this.save();
+  }
+
   async scan(timeoutMs = 4000): Promise<CachedAndroidTv[]> {
     if (this.scanPromise) {
       return this.scanPromise;

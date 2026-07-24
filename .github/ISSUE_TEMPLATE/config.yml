@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/tharunpkarun/homebridge-androidtv-ultimate#readme
+    about: Review setup, pairing, discovery, and troubleshooting guidance.
