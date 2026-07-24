@@ -179,6 +179,45 @@ The custom plugin modal is organized into four responsive tabs:
 
 The dashboard supports automatic, light, and dark themes. Automatic mode follows the browser or operating-system color preference.
 
+#### Interface preview
+
+Select any screenshot to open the full-resolution view.
+
+<table>
+  <tr>
+    <td width="50%" valign="top" align="center">
+      <a href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/blob/main/docs/images/androidtv-ultimate-dashboard.jpg">
+        <img src="https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/main/docs/images/androidtv-ultimate-dashboard.jpg" alt="AndroidTV Ultimate Dashboard tab showing setup progress, device totals, and device health" width="100%">
+      </a>
+      <br><strong>Dashboard</strong><br>
+      <sub>Setup journey, discovery totals, and device health at a glance.</sub>
+    </td>
+    <td width="50%" valign="top" align="center">
+      <a href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/blob/main/docs/images/androidtv-ultimate-devices.jpg">
+        <img src="https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/main/docs/images/androidtv-ultimate-devices.jpg" alt="AndroidTV Ultimate Devices tab showing discovery identity, endpoints, status, and pairing controls" width="100%">
+      </a>
+      <br><strong>Devices</strong><br>
+      <sub>Discovery identity, endpoints, pairing state, and per-TV actions.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top" align="center">
+      <a href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/blob/main/docs/images/androidtv-ultimate-settings.jpg">
+        <img src="https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/main/docs/images/androidtv-ultimate-settings.jpg" alt="AndroidTV Ultimate Settings tab showing platform name, discovery interval, offline grace period, and debug logging" width="100%">
+      </a>
+      <br><strong>Settings</strong><br>
+      <sub>Platform behavior, discovery timing, and device configuration.</sub>
+    </td>
+    <td width="50%" valign="top" align="center">
+      <a href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/blob/main/docs/images/androidtv-ultimate-tools-support.jpg">
+        <img src="https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/main/docs/images/androidtv-ultimate-tools-support.jpg" alt="AndroidTV Ultimate Tools and Support tab showing package information, bug reporting, diagnostics, encrypted backup, restore, and migration" width="100%">
+      </a>
+      <br><strong>Tools &amp; Support</strong><br>
+      <sub>Package details, safe diagnostics, encrypted backups, and migration.</sub>
+    </td>
+  </tr>
+</table>
+
 ### App Input Sources
 
 Remote Service v2 can launch Android app links, but installed-app enumeration is not consistent across firmware. Configure Input Sources explicitly with a web or custom URI:
