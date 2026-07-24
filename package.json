@@ -1,7 +1,7 @@
 {
   "name": "homebridge-androidtv-ultimate",
   "displayName": "AndroidTV Ultimate",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local-first Android TV control for Homebridge using the Remote Service v2 pairing protocol.",
   "license": "MIT",
   "author": {

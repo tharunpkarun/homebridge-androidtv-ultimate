@@ -8,9 +8,10 @@ import type {
 } from 'homebridge';
 import { AndroidTvAccessory } from './accessory/android-tv-accessory';
 import { CredentialStore } from './storage/credential-store';
-import type { AndroidTvDeviceConfig, AndroidTvPlatformConfig, DeviceSnapshot } from './types';
+import type { AndroidTvDeviceConfig, AndroidTvPlatformConfig, DeviceSnapshot, LearnedInputMapping } from './types';
 import { DEFAULT_DISCOVERY_INTERVAL_SECONDS, PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { DiscoveryCache } from './network/discovery-cache';
+import { InputMappingStore } from './storage/input-mapping-store';
 
 export class AndroidTvPlatform implements DynamicPlatformPlugin {
   readonly Service: typeof Service;
@@ -21,6 +22,7 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
   private readonly handlers = new Map<string, AndroidTvAccessory>();
   private readonly credentialStore: CredentialStore;
   private readonly discoveryCache: DiscoveryCache;
+  private readonly inputMappingStore: InputMappingStore;
   private readonly runtimeDevices = new Map<string, AndroidTvDeviceConfig>();
 
   constructor(
@@ -34,6 +36,7 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
     this.debugEnabled = config.debug === true;
     this.credentialStore = new CredentialStore(api.user.storagePath());
     this.discoveryCache = new DiscoveryCache(api.user.storagePath());
+    this.inputMappingStore = new InputMappingStore(api.user.storagePath());
 
     api.on('didFinishLaunching', () => void this.launch());
     api.on('shutdown', () => {
@@ -77,6 +80,10 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
     }
   }
 
+  async learnInputMapping(deviceId: string, inputIdentifier: number, packageName: string): Promise<LearnedInputMapping[]> {
+    return this.inputMappingStore.learn(deviceId, inputIdentifier, packageName);
+  }
+
   private async synchronizeAccessories(): Promise<void> {
     const configured = (this.config.devices ?? []).filter(device => device.id && device.name && device.host);
     const expected = new Set<string>();
@@ -94,9 +101,10 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
       accessory.displayName = device.name;
       accessory.context.deviceId = device.id;
       const credentials = await this.credentialStore.get(device.id);
+      const inputMappings = await this.inputMappingStore.list(device.id);
       const previous = this.handlers.get(uuid);
       previous?.stop();
-      this.handlers.set(uuid, new AndroidTvAccessory(this, accessory, device, credentials));
+      this.handlers.set(uuid, new AndroidTvAccessory(this, accessory, device, credentials, inputMappings));
       this.log.info('[%s] %s at %s:%d', device.name, credentials ? 'Ready' : 'Awaiting pairing', device.host, device.remotePort ?? 6466);
     }
 

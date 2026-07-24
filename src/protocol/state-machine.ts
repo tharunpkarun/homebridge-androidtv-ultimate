@@ -15,12 +15,12 @@ export class DeviceStateMachine extends EventEmitter {
 
   connecting(): void {
     this.clearDisconnectTimer();
-    this.update({ connection: 'connecting', error: undefined });
+    this.update({ connection: 'connecting', currentApp: undefined, error: undefined });
   }
 
   connected(): void {
     this.clearDisconnectTimer();
-    this.update({ connection: 'online', power: true, lastSeen: new Date().toISOString(), error: undefined });
+    this.update({ connection: 'online', power: true, currentApp: undefined, lastSeen: new Date().toISOString(), error: undefined });
   }
 
   disconnected(error?: Error): void {
@@ -38,7 +38,11 @@ export class DeviceStateMachine extends EventEmitter {
   }
 
   reportPower(power: boolean): void {
-    this.update({ power, lastSeen: new Date().toISOString() });
+    this.update({
+      power,
+      currentApp: power ? this.value.currentApp : undefined,
+      lastSeen: new Date().toISOString(),
+    });
   }
 
   reportVolume(volume: number): void {

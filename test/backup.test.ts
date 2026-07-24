@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -6,6 +7,7 @@ import test from 'node:test';
 import { DiscoveryCache } from '../src/network/discovery-cache';
 import { createEncryptedBackup, restoreEncryptedBackup } from '../src/storage/backup';
 import { CredentialStore } from '../src/storage/credential-store';
+import { InputMappingStore } from '../src/storage/input-mapping-store';
 import { diagnostics } from '../src/ui-api';
 import type { AndroidTvPlatformConfig, CachedAndroidTv, DeviceCredentials, PersistedStatus } from '../src/types';
 
@@ -58,6 +60,33 @@ const config: AndroidTvPlatformConfig = {
   }],
 };
 
+function withoutInputMappings<T extends Awaited<ReturnType<typeof createEncryptedBackup>>>(backup: T): T {
+  const salt = Buffer.from(backup.encryption.salt, 'base64');
+  const oldIv = Buffer.from(backup.encryption.iv, 'base64');
+  const key = scryptSync('correct horse battery staple', salt, 32);
+  const decipher = createDecipheriv('aes-256-gcm', key, oldIv);
+  decipher.setAAD(Buffer.from('androidtv-ultimate-encrypted-backup:1'));
+  decipher.setAuthTag(Buffer.from(backup.encryption.authenticationTag, 'base64'));
+  const payload = JSON.parse(Buffer.concat([
+    decipher.update(Buffer.from(backup.ciphertext, 'base64')),
+    decipher.final(),
+  ]).toString('utf8')) as Record<string, unknown>;
+  delete payload.inputMappings;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  cipher.setAAD(Buffer.from('androidtv-ultimate-encrypted-backup:1'));
+  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(payload)), cipher.final()]);
+  return {
+    ...backup,
+    encryption: {
+      ...backup.encryption,
+      iv: iv.toString('base64'),
+      authenticationTag: cipher.getAuthTag().toString('base64'),
+    },
+    ciphertext: ciphertext.toString('base64'),
+  };
+}
+
 test('encrypted backup restores config, pairing credentials, discovery, and status', async () => {
   const source = await mkdtemp(path.join(tmpdir(), 'atvu-backup-source-'));
   const target = await mkdtemp(path.join(tmpdir(), 'atvu-backup-target-'));
@@ -65,12 +94,14 @@ test('encrypted backup restores config, pairing credentials, discovery, and stat
   await sourceStore.set(credentials);
   await sourceStore.replaceStatuses([status]);
   await new DiscoveryCache(source).replace([discovered]);
+  await new InputMappingStore(source).learn('living-room-tv', 1, 'com.example.streaming');
 
   const backup = await createEncryptedBackup(source, config, '0.2.0', 'correct horse battery staple');
   const serialized = JSON.stringify(backup);
   assert.equal(serialized.includes(credentials.privateKey), false);
   assert.equal(serialized.includes(credentials.certificate), false);
   assert.equal(serialized.includes(discovered.host), false);
+  assert.equal(serialized.includes('com.example.streaming'), false);
   await assert.rejects(
     restoreEncryptedBackup(target, backup, 'incorrect passphrase'),
     /Could not decrypt this backup/,
@@ -84,6 +115,16 @@ test('encrypted backup restores config, pairing credentials, discovery, and stat
   await restoredDiscovery.load();
   assert.equal(restoredDiscovery.list()[0]?.host, '10.1.10.115');
   assert.equal((await new CredentialStore(target).readStatuses())[0]?.power, true);
+  assert.equal((await new InputMappingStore(target).list('living-room-tv'))[0]?.packageName, 'com.example.streaming');
+  assert.equal(restored.restored.inputMappings, 1);
+});
+
+test('older encrypted backups without app mappings remain restorable', async () => {
+  const source = await mkdtemp(path.join(tmpdir(), 'atvu-backup-legacy-source-'));
+  const target = await mkdtemp(path.join(tmpdir(), 'atvu-backup-legacy-target-'));
+  const backup = await createEncryptedBackup(source, config, '0.2.0', 'correct horse battery staple');
+  await restoreEncryptedBackup(target, withoutInputMappings(backup), 'correct horse battery staple');
+  assert.deepEqual(await new InputMappingStore(target).list(), []);
 });
 
 test('backup requires a non-trivial passphrase', async () => {
@@ -100,6 +141,7 @@ test('support diagnostics redact network and pairing identifiers by default', as
   await store.set(credentials);
   await store.replaceStatuses([status]);
   await new DiscoveryCache(source).replace([discovered]);
+  await new InputMappingStore(source).learn('living-room-tv', 1, 'com.example.streaming');
 
   const safe = JSON.stringify(await diagnostics(source));
   assert.equal(safe.includes('10.1.10.115'), false);
@@ -107,9 +149,11 @@ test('support diagnostics redact network and pairing identifiers by default', as
   assert.equal(safe.includes('AA:BB:CC:DD:EE:FF'), false);
   assert.equal(safe.includes(credentials.fingerprint), false);
   assert.equal(safe.includes(credentials.privateKey), false);
+  assert.equal(safe.includes('com.example.streaming'), false);
 
   const detailed = JSON.stringify(await diagnostics(source, true));
   assert.equal(detailed.includes('10.1.10.115'), true);
   assert.equal(detailed.includes('Living Room TV'), true);
   assert.equal(detailed.includes(credentials.privateKey), false);
+  assert.equal(detailed.includes('com.example.streaming'), true);
 });

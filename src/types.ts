@@ -4,6 +4,14 @@ export interface AppInputConfig {
   name: string;
   uri: string;
   identifier?: number;
+  packageName?: string;
+}
+
+export interface LearnedInputMapping {
+  deviceId: string;
+  inputIdentifier: number;
+  packageName: string;
+  learnedAt: string;
 }
 
 export interface AndroidTvDeviceConfig {
@@ -49,6 +57,8 @@ export interface DeviceSnapshot {
   volume?: number;
   muted?: boolean;
   currentApp?: string;
+  currentInputIdentifier?: number;
+  currentInputName?: string;
   lastSeen?: string;
   error?: string;
 }

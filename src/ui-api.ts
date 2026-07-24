@@ -11,6 +11,7 @@ import { encodeConfigure } from './protocol/remote-messages';
 import { CredentialStore } from './storage/credential-store';
 import { createEncryptedBackup, restoreEncryptedBackup } from './storage/backup';
 import { previewLegacyMigration } from './storage/migration';
+import { InputMappingStore } from './storage/input-mapping-store';
 
 interface PairingSession {
   client: PairingClient;
@@ -152,11 +153,29 @@ export async function status(storagePath: string): Promise<{
   paired: Awaited<ReturnType<CredentialStore['list']>>;
   statuses: Awaited<ReturnType<CredentialStore['readStatuses']>>;
   discovered: ReturnType<DiscoveryCache['list']>;
+  inputMappings: Awaited<ReturnType<InputMappingStore['list']>>;
 }> {
   const store = new CredentialStore(storagePath);
   const discovery = new DiscoveryCache(storagePath);
   await discovery.load();
-  return { paired: await store.list(), statuses: await store.readStatuses(), discovered: discovery.list() };
+  return {
+    paired: await store.list(),
+    statuses: await store.readStatuses(),
+    discovered: discovery.list(),
+    inputMappings: await new InputMappingStore(storagePath).list(),
+  };
+}
+
+export async function clearInputMapping(
+  storagePath: string,
+  deviceId: string,
+  inputIdentifier: number,
+): Promise<{ removed: true }> {
+  if (!deviceId || !Number.isInteger(inputIdentifier) || inputIdentifier < 1) {
+    throw new Error('Device ID and a valid input identifier are required');
+  }
+  await new InputMappingStore(storagePath).remove(deviceId, inputIdentifier);
+  return { removed: true };
 }
 
 export async function testConnection(storagePath: string, device: AndroidTvDeviceConfig): Promise<{
@@ -246,6 +265,15 @@ export async function diagnostics(
       ...item,
       deviceId: '<redacted>',
       host: '<redacted>',
+      currentApp: item.currentApp ? '<redacted>' : undefined,
+      currentInputName: item.currentInputName ? '<redacted>' : undefined,
+    }));
+  const inputMappings = includeNetworkIdentifiers
+    ? current.inputMappings
+    : current.inputMappings.map(item => ({
+      ...item,
+      deviceId: '<redacted>',
+      packageName: '<redacted>',
     }));
   const discovered = includeNetworkIdentifiers
     ? current.discovered
@@ -274,6 +302,7 @@ export async function diagnostics(
     paired,
     statuses,
     discovered,
+    inputMappings,
     credentialsIncluded: false,
     networkIdentifiersIncluded: includeNetworkIdentifiers,
   };

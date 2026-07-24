@@ -20,6 +20,8 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /id="atvuBugButton"/);
   assert.match(html, /id="atvuExportBackup"/);
   assert.match(html, /id="atvuImportBackup"/);
+  assert.match(html, /Android package \(optional\)/);
+  assert.match(html, /Clear detected package/);
   assert.doesNotMatch(html, /window\.prompt/);
 });
 

@@ -148,7 +148,9 @@
   .atvu-input[readonly] { opacity: .72; }
   .atvu-check { display: flex; gap: 8px; align-items: flex-start; color: var(--atvu-text); font-size: .76rem; }
   .atvu-check input { margin-top: 3px; }
-  .atvu-input-row { display: grid; grid-template-columns: 1fr 1.4fr 70px auto; gap: 6px; margin-bottom: 7px; }
+  .atvu-input-row-wrap { margin-bottom: 9px; }
+  .atvu-input-row { display: grid; grid-template-columns: 1fr 1.35fr 1.2fr 70px auto; gap: 6px; }
+  .atvu-learned-map { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; color: var(--atvu-muted); font-size: .68rem; margin: 5px 0 0; }
   .atvu-divider { border: 0; border-top: 1px solid var(--atvu-border); margin: 14px 0; }
   .atvu-pair-code { max-width: 220px; text-transform: uppercase; letter-spacing: .28em; font-size: 1.1rem; font-weight: 800; text-align: center; }
   .atvu-pre { max-height: 310px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: var(--atvu-text); background: var(--atvu-surface-soft); border: 1px solid var(--atvu-border); border-radius: 9px; padding: 10px; font-size: .7rem; }
@@ -296,7 +298,7 @@
           <div class="atvu-field"><label for="atvuEditServiceName">mDNS service identity</label><input id="atvuEditServiceName" class="atvu-input atvu-mono" readonly></div>
         </div>
         <hr class="atvu-divider">
-        <div class="atvu-section-header"><div><h4>App inputs</h4><div class="atvu-subtitle">Expose Android packages or deep links as inputs in Apple Home.</div></div><button id="atvuAddInput" class="atvu-button" type="button">Add app input</button></div>
+        <div class="atvu-section-header"><div><h4>App inputs</h4><div class="atvu-subtitle">Expose Android packages or deep links as inputs in Apple Home. The TV-confirmed foreground package controls the active input.</div></div><button id="atvuAddInput" class="atvu-button" type="button">Add app input</button></div>
         <div id="atvuInputRows"></div>
         <div class="atvu-toolbar" style="margin-top:12px">
           <button id="atvuSaveDevice" class="atvu-button atvu-button-primary" type="button">Save television</button>
@@ -355,7 +357,7 @@
 <script>
   (() => {
     let platform = { platform: 'AndroidTVUltimate', name: 'AndroidTV Ultimate', devices: [] }
-    let snapshot = { paired: [], statuses: [], discovered: [] }
+    let snapshot = { paired: [], statuses: [], discovered: [], inputMappings: [] }
     let aboutInfo = {}
     let activePairing = null
     let migration = null
@@ -398,6 +400,9 @@
 
     function pairedMap() { return new Map((snapshot.paired || []).map(item => [item.deviceId, item])) }
     function statusMap() { return new Map((snapshot.statuses || []).map(item => [item.deviceId, item])) }
+    function learnedMapping(deviceId, inputIdentifier) {
+      return (snapshot.inputMappings || []).find(item => item.deviceId === deviceId && item.inputIdentifier === inputIdentifier)
+    }
 
     function findConfigured(discovered) {
       const aliases = new Set([discovered.id, ...(discovered.aliases || [])].filter(Boolean))
@@ -515,6 +520,7 @@
             fact('Wake-on-LAN', merged.mac ? `Ready via ${merged.broadcastAddress || '255.255.255.255'}` : 'MAC address required'),
             fact('Paired since', pairing ? formatDate(pairing.pairedAt) : 'Not paired'),
             fact('Current app', status?.currentApp || 'Not reported'),
+            fact('Apple Home input', status?.currentInputName || (status?.currentApp ? 'No configured input' : 'None confirmed')),
             fact('Audio', status?.volume === undefined ? 'Not reported' : `${status.volume}%${status.muted ? ' · muted' : ''}`),
           )
         }
@@ -613,7 +619,7 @@
     async function refresh(showErrors = true) {
       try {
         snapshot = await homebridge.request('/status')
-        snapshot.paired ||= []; snapshot.statuses ||= []; snapshot.discovered ||= []
+        snapshot.paired ||= []; snapshot.statuses ||= []; snapshot.discovered ||= []; snapshot.inputMappings ||= []
         lastUpdatedAt = new Date().toISOString()
         renderAll()
       } catch (error) {
@@ -727,15 +733,40 @@
     function renderInputRows() {
       const container = byId('atvuInputRows'); container.replaceChildren()
       if (!editorInputs.length) container.append(element('div', 'atvu-empty', 'No app inputs configured. Add packages such as YouTube or a deep-link URI when needed.'))
+      const usedIdentifiers = new Set()
       editorInputs.forEach((input, index) => {
+        let inputIdentifier = input.identifier || index + 1
+        while (usedIdentifiers.has(inputIdentifier)) inputIdentifier += 1
+        usedIdentifiers.add(inputIdentifier)
+        const detected = editorDevice?.id ? learnedMapping(editorDevice.id, inputIdentifier) : undefined
+        const wrapper = element('div', 'atvu-input-row-wrap')
         const row = element('div', 'atvu-input-row')
         const name = element('input', 'atvu-input'); name.placeholder = 'Name'; name.value = input.name || ''; name.addEventListener('input', () => { editorInputs[index].name = name.value })
         const uri = element('input', 'atvu-input'); uri.placeholder = 'Package or URI'; uri.value = input.uri || ''; uri.addEventListener('input', () => { editorInputs[index].uri = uri.value })
+        const packageName = element('input', 'atvu-input atvu-mono'); packageName.placeholder = detected ? `Detected: ${detected.packageName}` : 'Android package (optional)'; packageName.value = input.packageName || ''; packageName.addEventListener('input', () => { editorInputs[index].packageName = packageName.value })
         const identifier = element('input', 'atvu-input'); identifier.type = 'number'; identifier.min = '1'; identifier.max = '255'; identifier.placeholder = 'ID'; identifier.value = input.identifier || ''; identifier.addEventListener('input', () => { editorInputs[index].identifier = identifier.value ? Number(identifier.value) : undefined })
         const remove = action('Remove', () => { editorInputs.splice(index, 1); renderInputRows() }); remove.classList.add('atvu-button-danger')
-        row.append(name, uri, identifier, remove); container.append(row)
+        row.append(name, uri, packageName, identifier, remove); wrapper.append(row)
+        if (detected) {
+          const learned = element('div', 'atvu-learned-map')
+          learned.append(element('span', '', `Automatically detected package: ${detected.packageName} · ${formatDate(detected.learnedAt)}`))
+          learned.append(action('Clear detected package', () => clearLearnedMapping(detected)))
+          wrapper.append(learned)
+        }
+        container.append(wrapper)
       })
       homebridge.fixScrollHeight()
+    }
+
+    async function clearLearnedMapping(mapping) {
+      try {
+        await homebridge.request('/input-mappings/clear', mapping)
+        snapshot.inputMappings = (snapshot.inputMappings || []).filter(item => item.deviceId !== mapping.deviceId || item.inputIdentifier !== mapping.inputIdentifier)
+        homebridge.toast.success('Detected package cleared. Restart Homebridge to apply the change in Apple Home.', 'App input mapping')
+        renderInputRows(); renderAll()
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Could not clear detected package')
+      }
     }
 
     function collectEditorDevice() {
@@ -743,7 +774,15 @@
       const name = byId('atvuEditName').value.trim()
       const host = byId('atvuEditHost').value.trim()
       if (!name || !host) throw new Error('TV name and IP address or hostname are required')
-      const inputs = editorInputs.filter(input => input.name?.trim() && input.uri?.trim()).map(input => ({ ...input, name: input.name.trim(), uri: input.uri.trim() }))
+      const inputs = editorInputs.filter(input => input.name?.trim() && input.uri?.trim()).map(input => ({
+        ...input,
+        name: input.name.trim(),
+        uri: input.uri.trim(),
+        packageName: input.packageName?.trim() || undefined,
+      }))
+      const explicitPackages = inputs.map(input => input.packageName).filter(Boolean)
+      const duplicatePackage = explicitPackages.find((value, index) => explicitPackages.indexOf(value) !== index)
+      if (duplicatePackage) throw new Error(`Android package ${duplicatePackage} is assigned to more than one app input`)
       const optional = id => byId(id).value.trim() || undefined
       return {
         ...editorDevice,
@@ -885,14 +924,14 @@
       let backup
       try { backup = JSON.parse(await file.text()) }
       catch { return homebridge.toast.error('The selected file is not valid JSON.', 'Restore') }
-      if (!window.confirm('Restore this encrypted plugin backup? Current AndroidTV Ultimate configuration, pairing credentials, discovery cache, and status data will be replaced.')) return
+      if (!window.confirm('Restore this encrypted plugin backup? Current AndroidTV Ultimate configuration, pairing credentials, discovery cache, learned app mappings, and status data will be replaced.')) return
       byId('atvuImportBackup').disabled = true
       try {
         const result = await homebridge.request('/backup/import', { backup, passphrase })
         platform = result.config; platform.platform = 'AndroidTVUltimate'; platform.devices ||= []
         await savePlatform(); loadGeneralSettings(); await refresh()
         byId('atvuRestorePassphrase').value = ''; byId('atvuBackupFile').value = ''
-        homebridge.toast.success(`Restored ${result.restored.devices} TV(s) and ${result.restored.credentials} pairing credential(s). Restart Homebridge now.`, 'Restore complete')
+        homebridge.toast.success(`Restored ${result.restored.devices} TV(s), ${result.restored.credentials} pairing credential(s), and ${result.restored.inputMappings || 0} learned app mapping(s). Restart Homebridge now.`, 'Restore complete')
       } catch (error) { homebridge.toast.error(errorMessage(error), 'Restore failed') }
       finally { byId('atvuImportBackup').disabled = false }
     }

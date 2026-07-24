@@ -73,7 +73,7 @@ The paired device appears in Apple Home as a Television accessory. AndroidTV Ult
 | HomeKit Television and Speaker services | ✅ | Uses standard cached platform accessories |
 | Directional, Select, Home, Back, media, and Info keys | ✅ | Sent through the local remote connection |
 | Volume, mute, and absolute volume | 🟡 | Availability and feedback depend on firmware |
-| App URI Input Sources | 🟡 | The target firmware must support the configured URI |
+| App URI Input Sources | 🟡 | Launches configured packages or deep links and reflects the TV-confirmed active app in Apple Home |
 | Wake-on-LAN | 🟡 | Requires a network MAC and hardware network-standby support |
 | Docker operation | ✅ | Host networking is recommended for multicast and broadcast traffic |
 | Cloud APIs, analytics, or telemetry | ➖ | Not used |
@@ -89,6 +89,7 @@ Depending on firmware support, AndroidTV Ultimate exposes:
 - Play/Pause and media navigation
 - Volume up/down, absolute volume, and mute
 - App URI launch through Television Input Sources
+- Live active-input feedback after the TV confirms its foreground Android package
 
 Every device remains isolated: a disconnected TV cannot overwrite another TV's state.
 
@@ -220,23 +221,30 @@ Select any screenshot to open the full-resolution view.
 
 ### App Input Sources
 
-Remote Service v2 can launch Android app links, but installed-app enumeration is not consistent across firmware. Configure Input Sources explicitly with a web or custom URI:
+Remote Service v2 can launch Android app links and report the foreground Android package. Configure Input Sources with a package or deep-link URI. When the TV reports a matching package, Apple Home selects that input automatically—even if the app was opened with the physical remote or another controller.
+
+For a direct package launch, the URI can also act as the package mapping:
 
 ```json
 {
-  "name": "Video",
-  "uri": "https://example.com/tv"
+  "name": "YouTube",
+  "uri": "com.google.android.youtube.tv"
 }
 ```
+
+For a deep link, optionally provide its foreground Android package:
 
 ```json
 {
   "name": "Streaming App",
-  "uri": "example-app://"
+  "uri": "example-app://browse",
+  "packageName": "com.example.streaming"
 }
 ```
 
-Each configured entry appears as a HomeKit Television Input Source.
+If `packageName` is omitted for a deep link, AndroidTV Ultimate opens a 15-second learning window after launch. A package reported continuously for three seconds is stored privately as the mapping for that input. Explicit package settings always take precedence, and learned mappings can be inspected or cleared in the device editor.
+
+Apple Home changes the active input only after the television confirms the foreground app. Unknown apps, offline TVs, and new connections show no active configured input instead of retaining a stale selection. Physical HDMI input detection is not included because Remote Service v2 does not expose it reliably.
 
 ### Wake-on-LAN
 
@@ -281,6 +289,7 @@ Migration imports recognized device settings and reusable Remote Service v2 cert
 - Android Remote Service v2 pairing certificates and private keys
 - Cached discovery identities and current IP endpoints
 - Last-known connection and power state
+- Automatically learned app-package mappings
 
 The encryption key is derived from a passphrase with `scrypt`. The passphrase is never stored and cannot be recovered. Keep the backup file and passphrase separately.
 
@@ -299,6 +308,7 @@ The dashboard creates and maintains device identities automatically. The main op
 | `mac` | — | Optional network MAC for identity matching and Wake-on-LAN |
 | `broadcastAddress` | `255.255.255.255` | Wake-on-LAN broadcast destination |
 | `deviceType` | `television` | HomeKit category: `television` or `settopbox` |
+| `inputs[].packageName` | — | Optional foreground Android package used for TV-confirmed active-input feedback |
 
 Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by discovery and should normally not be edited manually.
 
@@ -320,7 +330,14 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
       "deviceType": "television",
       "mac": "AA:BB:CC:DD:EE:FF",
       "broadcastAddress": "192.168.1.255",
-      "inputs": []
+      "inputs": [
+        {
+          "name": "Streaming App",
+          "uri": "example-app://browse",
+          "packageName": "com.example.streaming",
+          "identifier": 1
+        }
+      ]
     }
   ]
 }
@@ -365,6 +382,15 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 4. Confirm no older plugin controls the same Television accessory.
 
 **Expected result:** the accessory reports `Off` after the remote connection is unavailable beyond the grace period.
+
+### Apple Home does not show the active app
+
+1. Confirm the app exists as an Input Source for that TV.
+2. For a direct package launch, use the Android package as `uri`; for a deep link, set `packageName` or launch it once to let the plugin learn it.
+3. Check **Devices → Current app** and **Apple Home input** after the app is fully open.
+4. Clear an incorrect detected package in the device editor, restart Homebridge, and launch the input again.
+
+**Expected result:** Apple Home selects the configured input only after the TV reports its foreground package.
 
 ### Wake-on-LAN does not work
 

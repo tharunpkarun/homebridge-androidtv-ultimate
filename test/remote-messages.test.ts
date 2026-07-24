@@ -26,3 +26,13 @@ test('ping request is decoded and response echoes both values', () => {
   assert.equal(firstNumber(decodeFields(response), 1), 7);
   assert.equal(firstNumber(decodeFields(response), 2), 9);
 });
+
+test('foreground Android package is decoded from Remote Service v2 IME status', () => {
+  const message = new ProtoWriter().message(RemoteField.IME_KEY_INJECT, ime => {
+    ime.message(1, appInfo => appInfo.string(12, 'com.example.streaming'));
+  }).finish();
+  assert.deepEqual(decodeRemoteMessage(message), {
+    type: 'app',
+    currentApp: 'com.example.streaming',
+  });
+});

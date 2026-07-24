@@ -26,6 +26,11 @@
         return { cancelled: true }
       }))
       this.onRequest('/status', () => this.wrap(() => api.status(this.homebridgeStoragePath)))
+      this.onRequest('/input-mappings/clear', payload => this.wrap(() => api.clearInputMapping(
+        this.homebridgeStoragePath,
+        payload.deviceId,
+        payload.inputIdentifier,
+      )))
       this.onRequest('/test', payload => this.wrap(() => api.testConnection(this.homebridgeStoragePath, payload.device)))
       this.onRequest('/migration/preview', () => this.wrap(() => api.migrationPreview(this.homebridgeStoragePath)))
       this.onRequest('/migration/apply', () => this.wrap(() => api.applyMigration(this.homebridgeStoragePath)))

@@ -85,7 +85,6 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
 
   async launchApp(uri: string): Promise<void> {
     this.write(encodeAppLaunch(uri));
-    this.stateMachine.reportApp(uri);
   }
 
   async setPower(active: boolean): Promise<void> {
@@ -174,6 +173,9 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
         if (event.muted !== undefined) {
           this.stateMachine.reportMute(event.muted);
         }
+        break;
+      case 'app':
+        this.stateMachine.reportApp(event.currentApp);
         break;
       case 'error':
         this.emit('error', new Error(`Android TV remote error ${event.errorCode ?? 'unknown'}`));

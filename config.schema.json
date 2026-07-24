@@ -120,6 +120,11 @@
                 "properties": {
                   "name": { "title": "Name", "type": "string" },
                   "uri": { "title": "Android TV URI or Package", "type": "string" },
+                  "packageName": {
+                    "title": "Android Package Name",
+                    "description": "Optional foreground package used to reflect this active input in Apple Home. Deep links can be learned automatically.",
+                    "type": "string"
+                  },
                   "identifier": { "title": "HomeKit Identifier", "type": "integer", "minimum": 1, "maximum": 255 }
                 }
               }

@@ -10,8 +10,10 @@ import type {
   CachedAndroidTv,
   DeviceCredentials,
   PersistedStatus,
+  LearnedInputMapping,
 } from '../types';
 import { CredentialStore } from './credential-store';
+import { InputMappingStore } from './input-mapping-store';
 
 const BACKUP_FORMAT = 'androidtv-ultimate-encrypted-backup';
 const PAYLOAD_FORMAT = 'androidtv-ultimate-plugin-data';
@@ -41,6 +43,7 @@ interface PluginBackupPayload {
   credentials: DeviceCredentials[];
   discovery: CachedAndroidTv[];
   statuses: PersistedStatus[];
+  inputMappings?: LearnedInputMapping[];
 }
 
 function assertPassphrase(passphrase: string): void {
@@ -73,7 +76,8 @@ function validatePayload(value: unknown): PluginBackupPayload {
   if (!payload.config || typeof payload.config !== 'object'
     || !Array.isArray(payload.credentials)
     || !Array.isArray(payload.discovery)
-    || !Array.isArray(payload.statuses)) {
+    || !Array.isArray(payload.statuses)
+    || (payload.inputMappings !== undefined && !Array.isArray(payload.inputMappings))) {
     throw new Error('Backup payload is incomplete');
   }
   return payload as PluginBackupPayload;
@@ -99,6 +103,7 @@ export async function createEncryptedBackup(
     credentials: await store.exportAll(),
     discovery: discoveryCache.list(),
     statuses: await store.readStatuses(),
+    inputMappings: await new InputMappingStore(storagePath).list(),
   };
 
   const salt = randomBytes(16);
@@ -135,7 +140,7 @@ export async function restoreEncryptedBackup(
   config: AndroidTvPlatformConfig;
   createdAt: string;
   sourcePluginVersion: string;
-  restored: { devices: number; credentials: number; discovered: number; statuses: number };
+  restored: { devices: number; credentials: number; discovered: number; statuses: number; inputMappings: number };
 }> {
   assertPassphrase(passphrase);
   if (!isEncryptedBackup(backup)) {
@@ -167,6 +172,7 @@ export async function restoreEncryptedBackup(
   await store.replaceAll(payload.credentials);
   await store.replaceStatuses(payload.statuses);
   await new DiscoveryCache(storagePath).replace(payload.discovery);
+  await new InputMappingStore(storagePath).replaceAll(payload.inputMappings ?? []);
 
   return {
     config: payload.config,
@@ -177,6 +183,7 @@ export async function restoreEncryptedBackup(
       credentials: payload.credentials.length,
       discovered: payload.discovery.length,
       statuses: payload.statuses.length,
+      inputMappings: payload.inputMappings?.length ?? 0,
     },
   };
 }

@@ -8,6 +8,7 @@ export const STORAGE_DIRECTORY = 'androidtv-ultimate';
 export const CREDENTIALS_FILE = 'credentials.json';
 export const STATUS_FILE = 'status.json';
 export const DISCOVERY_FILE = 'discovery.json';
+export const INPUT_MAPPINGS_FILE = 'input-mappings.json';
 
 export const CLIENT_MODEL = 'Homebridge';
 export const CLIENT_VENDOR = 'Tharun P Karun';

@@ -28,17 +28,18 @@ export const RemoteField = {
   PING_REQUEST: 8,
   PING_RESPONSE: 9,
   KEY_INJECT: 10,
+  IME_KEY_INJECT: 20,
   SET_VOLUME_LEVEL: 19,
-  ADJUST_VOLUME_LEVEL: 20,
   SET_MUTE: 21,
   APP_LINK_LAUNCH_REQUEST: 90,
 } as const;
 
 export interface RemoteEvent {
-  type: 'configure' | 'start' | 'ping' | 'volume' | 'mute' | 'error' | 'unknown';
+  type: 'configure' | 'start' | 'ping' | 'volume' | 'mute' | 'app' | 'error' | 'unknown';
   started?: boolean;
   volume?: number;
   muted?: boolean;
+  currentApp?: string;
   errorCode?: number;
   rawField?: number;
   ping?: { value1: number; value2: number };
@@ -100,8 +101,16 @@ export function decodeRemoteMessage(message: Buffer): RemoteEvent {
         type: 'ping',
         ping: { value1: firstNumber(nested, 1) ?? 0, value2: firstNumber(nested, 2) ?? 0 },
       };
+    case RemoteField.IME_KEY_INJECT: {
+      const appInfo = firstBytes(nested, 1);
+      if (appInfo) {
+        const appPackage = firstBytes(decodeFields(appInfo), 12)?.toString('utf8').trim();
+        return { type: 'app', currentApp: appPackage || undefined };
+      }
+      // Some firmware uses field 20 for a scalar volume adjustment instead of IME status.
+      return { type: 'volume', volume: firstNumber(nested, 1) };
+    }
     case RemoteField.SET_VOLUME_LEVEL:
-    case RemoteField.ADJUST_VOLUME_LEVEL:
       return { type: 'volume', volume: firstNumber(nested, 1) };
     case RemoteField.SET_MUTE:
       return { type: 'mute', muted: firstNumber(nested, 1) !== 0 };

@@ -2,6 +2,12 @@
 
 All notable changes are documented here.
 
+## 0.3.0 - 2026-07-24
+
+- Added TV-confirmed active app synchronization for Apple Home Television inputs.
+- Added explicit Android package mappings and stable automatic package learning for deep-link inputs.
+- Added private learned-mapping storage, dashboard inspection/reset controls, encrypted-backup support, and privacy-safe diagnostics.
+
 ## 0.2.0 - 2026-07-24
 
 - Rebuilt the custom settings UI with Dashboard, Devices, Settings, and Tools & Support tabs.
