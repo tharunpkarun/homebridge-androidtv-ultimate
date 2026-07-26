@@ -2,6 +2,12 @@
 
 All notable changes are documented here.
 
+## 0.3.3 - 2026-07-26
+
+- Fixed Remote Service v2 pairing for televisions whose advertised names contain Unicode characters, including non-Latin scripts, emoji, and smart punctuation.
+- Encoded generated X.509 client certificate names as UTF8String to prevent OpenSSL `bad base64 decode` and `ASN1 too long` errors on Node.js 24.
+- Added regression coverage for multilingual and emoji television names across certificate, private-key, and TLS context parsing.
+
 ## 0.3.2 - 2026-07-24
 
 - Replaced the remaining Mermaid Quick Start flow with a portable static diagram so every README visual renders on npm.

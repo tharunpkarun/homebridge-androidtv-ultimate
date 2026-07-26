@@ -17,7 +17,12 @@ export function createClientCertificate(commonName: string): ClientCertificate {
   certificate.validity.notAfter = new Date();
   certificate.validity.notAfter.setFullYear(certificate.validity.notAfter.getFullYear() + 20);
 
-  const attributes = [{ name: 'commonName', value: commonName }];
+  // Android TV names are advertised as UTF-8 and may contain scripts, emoji,
+  // or smart punctuation that cannot be represented as an X.509
+  // PrintableString. Explicitly encode the common name as UTF8String so
+  // OpenSSL can parse the generated certificate on every supported Node.js
+  // version.
+  const attributes = [{ name: 'commonName', value: commonName, valueTagClass: forge.asn1.Type.UTF8 }];
   certificate.setSubject(attributes);
   certificate.setIssuer(attributes);
   certificate.setExtensions([

@@ -43,7 +43,7 @@ npm install -g homebridge-androidtv-ultimate
 
 ## Quick start
 
-![AndroidTV Ultimate quick start flowchart](https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/v0.3.2/docs/images/quick-start-flow.png)
+![AndroidTV Ultimate quick start flowchart](https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/v0.3.3/docs/images/quick-start-flow.png)
 
 1. Put Homebridge and the Android TV device on the same local network.
 2. Open the AndroidTV Ultimate settings dashboard.
@@ -89,7 +89,7 @@ Every device remains isolated: a disconnected TV cannot overwrite another TV's s
 
 AndroidTV Ultimate refreshes Android TV mDNS advertisements every 60 seconds by default. It reads the service instance, hostname, TXT metadata, Remote Service port, IPv4 address, and IPv6 address.
 
-![AndroidTV Ultimate discovery and automatic IP recovery flowchart](https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/v0.3.2/docs/images/discovery-ip-recovery.png)
+![AndroidTV Ultimate discovery and automatic IP recovery flowchart](https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/v0.3.3/docs/images/discovery-ip-recovery.png)
 
 Discovery data is stored at:
 
