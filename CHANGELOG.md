@@ -7,6 +7,7 @@ All notable changes are documented here.
 - Corrected the Remote Service v2 pairing envelope, option/configuration field numbers, and configuration acknowledgement handling for TVs that ignored malformed pairing negotiations.
 - Added pairing state transitions and failures to the Homebridge log for actionable diagnostics.
 - Build the runtime automatically when installing a development commit directly from GitHub.
+- Hash the raw TLS RSA modulus and exponent bytes when validating the TV code, without adding sign-padding bytes that made correct codes fail.
 
 ## 0.3.3 - 2026-07-26
 

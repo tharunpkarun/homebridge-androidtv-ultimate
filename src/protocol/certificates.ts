@@ -47,17 +47,13 @@ function decodeBase64Url(value: string): Buffer {
   return Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 }
 
-function javaUnsignedInteger(value: Buffer): Buffer {
-  return value.length > 0 && (value[0] ?? 0) >= 0x80 ? Buffer.concat([Buffer.from([0]), value]) : value;
-}
-
 function rsaParts(certificate: string | Buffer): [Buffer, Buffer] {
   const x509 = new X509Certificate(certificate);
   const jwk = x509.publicKey.export({ format: 'jwk' });
   if (jwk.kty !== 'RSA' || !jwk.n || !jwk.e) {
     throw new Error('Android TV pairing requires an RSA certificate');
   }
-  return [javaUnsignedInteger(decodeBase64Url(jwk.n)), javaUnsignedInteger(decodeBase64Url(jwk.e))];
+  return [decodeBase64Url(jwk.n), decodeBase64Url(jwk.e)];
 }
 
 export function calculatePairingSecret(clientCertificate: string, serverCertificate: Buffer, code: string): Buffer {
