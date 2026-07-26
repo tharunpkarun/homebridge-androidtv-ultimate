@@ -2,6 +2,11 @@
 
 All notable changes are documented here.
 
+## Unreleased
+
+- Corrected the Remote Service v2 pairing envelope, option/configuration field numbers, and configuration acknowledgement handling for TVs that ignored malformed pairing negotiations.
+- Added pairing state transitions and failures to the Homebridge log for actionable diagnostics.
+
 ## 0.3.3 - 2026-07-26
 
 - Fixed Remote Service v2 pairing for televisions whose advertised names contain Unicode characters, including non-Latin scripts, emoji, and smart punctuation.

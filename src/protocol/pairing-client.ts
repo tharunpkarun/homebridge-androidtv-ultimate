@@ -11,6 +11,7 @@ import {
   encodePairingRequest,
   encodePairingSecret,
   pairingMessageType,
+  pairingStatus,
 } from './pairing-messages';
 
 export type PairingState = 'idle' | 'connecting' | 'negotiating' | 'waiting-for-code' | 'verifying' | 'paired' | 'closed';
@@ -116,6 +117,11 @@ export class PairingClient extends EventEmitter {
   }
 
   private handleMessage(message: Buffer): void {
+    const status = pairingStatus(message);
+    if (status !== undefined && status !== 200) {
+      this.fail(new Error(`The TV rejected pairing with protocol status ${status}`));
+      return;
+    }
     switch (pairingMessageType(message)) {
       case PairingField.REQUEST_ACK:
         this.send(encodePairingOption());
@@ -123,7 +129,7 @@ export class PairingClient extends EventEmitter {
       case PairingField.OPTION:
         this.send(encodePairingConfiguration());
         break;
-      case PairingField.CONFIGURATION:
+      case PairingField.CONFIGURATION_ACK:
         this.setState('waiting-for-code');
         this.promptResolve?.({
           state: 'waiting-for-code',

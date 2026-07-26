@@ -111,6 +111,8 @@ export async function beginPairing(
     `Homebridge ${device.name}`,
   );
   const session = { client, storage: new CredentialStore(storagePath) };
+  client.on('state', state => console.info(`[AndroidTV Ultimate] Pairing ${device.name}: ${state}`));
+  client.on('pairingError', error => console.error(`[AndroidTV Ultimate] Pairing ${device.name} failed: ${error.message}`));
   sessions.set(sessionId, session);
   try {
     const prompt = await client.start();
