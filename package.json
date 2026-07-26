@@ -36,6 +36,7 @@
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('.test-dist',{recursive:true,force:true})\"",
     "build": "npm run clean && tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run clean && tsc -p tsconfig.test.json && node --test .test-dist/test/*.test.js",
     "check": "npm run typecheck && npm test",
