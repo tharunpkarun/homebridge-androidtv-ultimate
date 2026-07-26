@@ -8,6 +8,7 @@ All notable changes are documented here.
 - Added pairing state transitions and failures to the Homebridge log for actionable diagnostics.
 - Build the runtime automatically when installing a development commit directly from GitHub.
 - Hash the raw TLS RSA modulus and exponent bytes when validating the TV code, without adding sign-padding bytes that made correct codes fail.
+- Emit and log pairing-code validation failures instead of returning them only to the settings dialog.
 
 ## 0.3.3 - 2026-07-26
 

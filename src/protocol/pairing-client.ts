@@ -104,9 +104,13 @@ export class PairingClient extends EventEmitter {
       this.pairedResolve = resolve;
       this.pairedReject = reject;
     });
-    const secret = calculatePairingSecret(this.clientCertificate.certificate, this.peerCertificate, code);
-    this.setState('verifying');
-    this.send(encodePairingSecret(secret));
+    try {
+      const secret = calculatePairingSecret(this.clientCertificate.certificate, this.peerCertificate, code);
+      this.setState('verifying');
+      this.send(encodePairingSecret(secret));
+    } catch (error) {
+      this.fail(error instanceof Error ? error : new Error(String(error)));
+    }
     return paired;
   }
 
