@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { isIP } from 'node:net';
 import tls, { type TLSSocket } from 'node:tls';
+import { REMOTE_FEATURE_MASK } from '../settings';
 import type { AndroidTvDeviceConfig, DeviceCredentials, DeviceSnapshot } from '../types';
 import { frameMessage, FrameDecoder } from './framing';
 import {
@@ -9,10 +10,8 @@ import {
   encodeAppLaunch,
   encodeConfigure,
   encodeKey,
-  encodeMute,
   encodePingResponse,
   encodeSetActive,
-  encodeVolume,
 } from './remote-messages';
 import { DeviceStateMachine } from './state-machine';
 import type { AndroidTvTransport } from './transport';
@@ -23,6 +22,10 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
   private socket?: TLSSocket;
   private reconnectTimer?: NodeJS.Timeout;
   private reconnectAttempt = 0;
+  private activeFeatures = REMOTE_FEATURE_MASK;
+  private ready = false;
+  private volumeLevel?: number;
+  private volumeMax?: number;
   private stopped = true;
 
   constructor(
@@ -49,6 +52,7 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
 
   stop(): void {
     this.stopped = true;
+    this.ready = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
@@ -57,6 +61,7 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
     this.socket = undefined;
     this.decoder.reset();
     this.stateMachine.stop();
+    this.emit('stopped');
   }
 
   updateEndpoint(host: string, port: number): void {
@@ -80,33 +85,46 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
   }
 
   async sendKey(key: AndroidKeyCode): Promise<void> {
+    await this.waitUntilReady();
     this.write(encodeKey(key));
   }
 
   async launchApp(uri: string): Promise<void> {
+    await this.waitUntilReady();
     this.write(encodeAppLaunch(uri));
   }
 
   async setPower(active: boolean): Promise<void> {
-    if (!this.socket?.writable) {
-      if (active) {
-        throw new Error('TV is offline; Wake-on-LAN is required to turn it on');
-      }
-      this.stateMachine.reportPower(false);
+    await this.waitUntilReady();
+    if (this.snapshot.power === active) {
       return;
     }
-    this.write(encodeKey(active ? AndroidKeyCode.WAKEUP : AndroidKeyCode.SLEEP));
+    this.write(encodeKey(AndroidKeyCode.POWER));
     this.stateMachine.reportPower(active);
   }
 
   async setVolume(level: number): Promise<void> {
+    await this.waitUntilReady();
     const normalized = Math.max(0, Math.min(100, Math.round(level)));
-    this.write(encodeVolume(normalized));
+    if (this.volumeLevel === undefined || this.volumeMax === undefined || this.volumeMax <= 0) {
+      throw new Error('Android TV has not reported a usable volume range');
+    }
+    const target = Math.round((normalized / 100) * this.volumeMax);
+    const difference = target - this.volumeLevel;
+    const key = difference >= 0 ? AndroidKeyCode.VOLUME_UP : AndroidKeyCode.VOLUME_DOWN;
+    for (let index = 0; index < Math.abs(difference); index += 1) {
+      this.write(encodeKey(key));
+    }
+    this.volumeLevel = target;
     this.stateMachine.reportVolume(normalized);
   }
 
   async setMuted(muted: boolean): Promise<void> {
-    this.write(encodeMute(muted));
+    await this.waitUntilReady();
+    if (this.snapshot.muted === muted) {
+      return;
+    }
+    this.write(encodeKey(AndroidKeyCode.MUTE));
     this.stateMachine.reportMute(muted);
   }
 
@@ -114,6 +132,10 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
     if (this.stopped) {
       return;
     }
+    this.ready = false;
+    this.activeFeatures = REMOTE_FEATURE_MASK;
+    this.volumeLevel = undefined;
+    this.volumeMax = undefined;
     this.stateMachine.connecting();
     const socket = tls.connect({
       host: this.device.host,
@@ -127,8 +149,6 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
     socket.setKeepAlive(true, 10_000);
     socket.once('secureConnect', () => {
       this.reconnectAttempt = 0;
-      this.stateMachine.connected();
-      this.write(encodeConfigure(this.credentials.clientName));
     });
     socket.on('data', chunk => {
       try {
@@ -141,6 +161,7 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
     });
     socket.on('error', error => this.emit('error', error));
     socket.once('close', () => {
+      this.ready = false;
       if (this.socket === socket) {
         this.socket = undefined;
       }
@@ -154,22 +175,33 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
     const event = decodeRemoteMessage(message);
     switch (event.type) {
       case 'configure':
-        this.write(encodeSetActive());
+        if (event.features !== undefined && event.features > 0) {
+          this.activeFeatures = REMOTE_FEATURE_MASK & event.features;
+        }
+        this.write(encodeConfigure(this.activeFeatures));
+        break;
+      case 'setActive':
+        this.write(encodeSetActive(this.activeFeatures));
         break;
       case 'start':
-        this.stateMachine.reportPower(event.started !== false);
+        this.ready = true;
+        this.stateMachine.connected(event.started !== false);
+        this.emit('ready');
         break;
       case 'ping':
         if (event.ping) {
-          this.write(encodePingResponse(event.ping.value1, event.ping.value2));
+          this.write(encodePingResponse(event.ping.value1));
         }
         break;
       case 'volume':
         if (event.volume !== undefined) {
-          this.stateMachine.reportVolume(event.volume);
+          this.volumeLevel = event.volume;
+          this.volumeMax = event.volumeMax && event.volumeMax > 0 ? event.volumeMax : undefined;
+          const normalized = this.volumeMax
+            ? Math.round((this.volumeLevel / this.volumeMax) * 100)
+            : this.volumeLevel;
+          this.stateMachine.reportVolume(normalized);
         }
-        break;
-      case 'mute':
         if (event.muted !== undefined) {
           this.stateMachine.reportMute(event.muted);
         }
@@ -190,6 +222,37 @@ export class RemoteServiceV2Transport extends EventEmitter implements AndroidTvT
       throw new Error('Android TV remote connection is offline');
     }
     this.socket.write(frameMessage(message));
+  }
+
+  private async waitUntilReady(timeoutMs = 10_000): Promise<void> {
+    if (this.ready && this.socket?.writable) {
+      return;
+    }
+    if (this.stopped) {
+      throw new Error('Android TV remote connection is stopped');
+    }
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = (): void => {
+        clearTimeout(timer);
+        this.off('ready', onReady);
+        this.off('stopped', onStopped);
+      };
+      const onReady = (): void => {
+        cleanup();
+        resolve();
+      };
+      const onStopped = (): void => {
+        cleanup();
+        reject(new Error('Android TV remote connection was stopped'));
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Android TV remote connection did not become ready'));
+      }, timeoutMs);
+      timer.unref();
+      this.once('ready', onReady);
+      this.once('stopped', onStopped);
+    });
   }
 
   private scheduleReconnect(): void {

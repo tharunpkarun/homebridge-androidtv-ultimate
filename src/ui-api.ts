@@ -7,7 +7,13 @@ import type { AndroidTvDeviceConfig, AndroidTvPlatformConfig } from './types';
 import { DiscoveryCache } from './network/discovery-cache';
 import { frameMessage, FrameDecoder } from './protocol/framing';
 import { PairingClient } from './protocol/pairing-client';
-import { encodeConfigure } from './protocol/remote-messages';
+import { REMOTE_FEATURE_MASK } from './settings';
+import {
+  decodeRemoteMessage,
+  encodeConfigure,
+  encodePingResponse,
+  encodeSetActive,
+} from './protocol/remote-messages';
 import { CredentialStore } from './storage/credential-store';
 import { createEncryptedBackup, restoreEncryptedBackup } from './storage/backup';
 import { previewLegacyMigration } from './storage/migration';
@@ -198,6 +204,7 @@ export async function testConnection(storagePath: string, device: AndroidTvDevic
   const started = Date.now();
   return new Promise((resolve, reject) => {
     const decoder = new FrameDecoder();
+    let activeFeatures = REMOTE_FEATURE_MASK;
     const socket = tls.connect({
       host: resolved.host,
       port: resolved.remotePort ?? 6466,
@@ -223,10 +230,22 @@ export async function testConnection(storagePath: string, device: AndroidTvDevic
         testedAt: new Date().toISOString(),
       });
     };
-    socket.once('secureConnect', () => socket.write(frameMessage(encodeConfigure(credentials.clientName))));
     socket.on('data', data => {
-      if (decoder.push(data).length > 0) {
-        finish();
+      for (const message of decoder.push(data)) {
+        const event = decodeRemoteMessage(message);
+        if (event.type === 'configure') {
+          if (event.features !== undefined && event.features > 0) {
+            activeFeatures = REMOTE_FEATURE_MASK & event.features;
+          }
+          socket.write(frameMessage(encodeConfigure(activeFeatures)));
+        } else if (event.type === 'setActive') {
+          socket.write(frameMessage(encodeSetActive(activeFeatures)));
+        } else if (event.type === 'ping' && event.ping) {
+          socket.write(frameMessage(encodePingResponse(event.ping.value1)));
+        } else if (event.type === 'start') {
+          finish();
+          return;
+        }
       }
     });
     socket.once('error', error => {

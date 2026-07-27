@@ -12,6 +12,10 @@ All notable changes are documented here.
 - Add per-device Power, navigation, media, volume, mute, input, and Wake-on-LAN switches to the custom UI and configuration schema.
 - Add editable Android key-code mappings for every navigation and media command.
 - Expand inputs with HomeKit source types, stable identifiers, Android packages/deep links, active-package matching, and custom key commands.
+- Correct the Remote Service v2 server-led Configure, SetActive, and Start handshake so paired TVs accept outbound commands.
+- Use the canonical Start and volume field numbers, correct Configure field types, and protocol-compliant ping replies.
+- Wait for RemoteStart readiness across brief reconnects before sending HomeKit commands instead of failing inside the disconnect grace window.
+- Send portable Android power, volume-step, and mute key events and normalize the TV-reported volume range for HomeKit.
 
 ## 0.3.4 - 2026-07-27
 

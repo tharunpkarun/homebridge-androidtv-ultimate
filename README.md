@@ -65,7 +65,7 @@ The paired device appears in Apple Home as a Television accessory. AndroidTV Ult
 | Profile-aware HomeKit services | ✅ | Television, Speaker, or Smart Speaker becomes primary according to the selected profile |
 | Per-device control and key mapping | ✅ | Enable each control group and override Android key codes in the dashboard |
 | Directional, Select, Home, Back, media, and Info keys | ✅ | Uses Android KeyEvent defaults through the local remote connection |
-| Volume, mute, and absolute volume | 🟡 | Availability and feedback depend on firmware |
+| Volume, mute, and absolute volume | 🟡 | Absolute targets are translated into Android volume-step commands using the TV-reported range |
 | Configurable Input Sources | 🟡 | Apps, deep links, HDMI, tuner, USB, and custom key commands; active feedback requires an Android package report |
 | Wake-on-LAN | 🟡 | Requires a network MAC and hardware network-standby support |
 | Docker operation | ✅ | Host networking is recommended for multicast and broadcast traffic |
@@ -150,6 +150,8 @@ power: off
 ```
 
 The accessory changes to `On` only after mutual TLS connects successfully. Following a disconnect, it changes to `Off` when `disconnectGraceMs` expires. The default grace period is `2500` milliseconds, which filters brief network interruptions without retaining a stale state indefinitely.
+
+TLS authentication alone is not considered ready. The plugin completes Android's server-led Configure and SetActive exchange and waits for `RemoteStart` before reporting the connection online or sending HomeKit commands. A command received during a brief reconnect waits up to ten seconds for that readiness signal.
 
 ## Feature guides
 

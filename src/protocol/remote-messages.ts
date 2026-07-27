@@ -1,4 +1,4 @@
-import { CLIENT_MODEL, CLIENT_PACKAGE, CLIENT_VENDOR, PROTOCOL_VERSION } from '../settings';
+import { CLIENT_MODEL, CLIENT_PACKAGE, CLIENT_VENDOR, REMOTE_FEATURE_MASK } from '../settings';
 import { ProtoWriter, decodeFields, firstBytes, firstNumber } from './protobuf';
 
 export enum AndroidKeyCode {
@@ -31,20 +31,21 @@ export const RemoteField = {
   CONFIGURE: 1,
   SET_ACTIVE: 2,
   ERROR: 3,
-  START: 5,
   PING_REQUEST: 8,
   PING_RESPONSE: 9,
   KEY_INJECT: 10,
   IME_KEY_INJECT: 20,
-  SET_VOLUME_LEVEL: 19,
-  SET_MUTE: 21,
+  START: 40,
+  SET_VOLUME_LEVEL: 50,
   APP_LINK_LAUNCH_REQUEST: 90,
 } as const;
 
 export interface RemoteEvent {
-  type: 'configure' | 'start' | 'ping' | 'volume' | 'mute' | 'app' | 'error' | 'unknown';
+  type: 'configure' | 'setActive' | 'start' | 'ping' | 'volume' | 'app' | 'error' | 'unknown';
+  features?: number;
   started?: boolean;
   volume?: number;
+  volumeMax?: number;
   muted?: boolean;
   currentApp?: string;
   errorCode?: number;
@@ -52,25 +53,25 @@ export interface RemoteEvent {
   ping?: { value1: number; value2: number };
 }
 
-export function encodeConfigure(clientName: string): Buffer {
+export function encodeConfigure(features = REMOTE_FEATURE_MASK): Buffer {
   return new ProtoWriter().message(RemoteField.CONFIGURE, configure => {
-    configure.varint(1, PROTOCOL_VERSION).message(2, info => {
+    configure.varint(1, features).message(2, info => {
       info.string(1, CLIENT_MODEL)
         .string(2, CLIENT_VENDOR)
-        .string(3, '1')
-        .string(4, clientName)
+        .varint(3, 1)
+        .string(4, '1')
         .string(5, CLIENT_PACKAGE)
-        .string(6, '0.1.0');
+        .string(6, '1.0.0');
     });
   }).finish();
 }
 
-export function encodeSetActive(): Buffer {
-  return new ProtoWriter().message(RemoteField.SET_ACTIVE, writer => writer.varint(1, PROTOCOL_VERSION)).finish();
+export function encodeSetActive(features = REMOTE_FEATURE_MASK): Buffer {
+  return new ProtoWriter().message(RemoteField.SET_ACTIVE, writer => writer.varint(1, features)).finish();
 }
 
-export function encodePingResponse(value1: number, value2: number): Buffer {
-  return new ProtoWriter().message(RemoteField.PING_RESPONSE, writer => writer.varint(1, value1).varint(2, value2)).finish();
+export function encodePingResponse(value: number): Buffer {
+  return new ProtoWriter().message(RemoteField.PING_RESPONSE, writer => writer.varint(1, value)).finish();
 }
 
 export function encodeKey(keyCode: AndroidKeyCode, direction = 3): Buffer {
@@ -83,14 +84,6 @@ export function encodeAppLaunch(uri: string): Buffer {
   return new ProtoWriter().message(RemoteField.APP_LINK_LAUNCH_REQUEST, writer => writer.string(1, uri)).finish();
 }
 
-export function encodeVolume(level: number): Buffer {
-  return new ProtoWriter().message(RemoteField.SET_VOLUME_LEVEL, writer => writer.varint(1, Math.round(level))).finish();
-}
-
-export function encodeMute(muted: boolean): Buffer {
-  return new ProtoWriter().message(RemoteField.SET_MUTE, writer => writer.bool(1, muted)).finish();
-}
-
 export function decodeRemoteMessage(message: Buffer): RemoteEvent {
   const outer = decodeFields(message);
   const top = outer.find(field => Buffer.isBuffer(field.value));
@@ -100,7 +93,9 @@ export function decodeRemoteMessage(message: Buffer): RemoteEvent {
   const nested = decodeFields(top.value);
   switch (top.number) {
     case RemoteField.CONFIGURE:
-      return { type: 'configure' };
+      return { type: 'configure', features: firstNumber(nested, 1) };
+    case RemoteField.SET_ACTIVE:
+      return { type: 'setActive', features: firstNumber(nested, 1) };
     case RemoteField.START:
       return { type: 'start', started: firstNumber(nested, 1) !== 0 };
     case RemoteField.PING_REQUEST:
@@ -114,13 +109,17 @@ export function decodeRemoteMessage(message: Buffer): RemoteEvent {
         const appPackage = firstBytes(decodeFields(appInfo), 12)?.toString('utf8').trim();
         return { type: 'app', currentApp: appPackage || undefined };
       }
-      // Some firmware uses field 20 for a scalar volume adjustment instead of IME status.
-      return { type: 'volume', volume: firstNumber(nested, 1) };
+      return { type: 'app' };
     }
-    case RemoteField.SET_VOLUME_LEVEL:
-      return { type: 'volume', volume: firstNumber(nested, 1) };
-    case RemoteField.SET_MUTE:
-      return { type: 'mute', muted: firstNumber(nested, 1) !== 0 };
+    case RemoteField.SET_VOLUME_LEVEL: {
+      const muted = firstNumber(nested, 8);
+      return {
+        type: 'volume',
+        volume: firstNumber(nested, 7),
+        volumeMax: firstNumber(nested, 6),
+        muted: muted === undefined ? undefined : muted !== 0,
+      };
+    }
     case RemoteField.ERROR:
       return { type: 'error', errorCode: firstNumber(nested, 1) };
     default:

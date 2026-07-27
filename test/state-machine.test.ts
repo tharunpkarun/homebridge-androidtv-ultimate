@@ -7,6 +7,14 @@ test('offline is the initial state and never defaults to on', () => {
   assert.deepEqual(state.snapshot, { connection: 'offline', power: false });
 });
 
+test('remote readiness preserves the power state confirmed by RemoteStart', () => {
+  const state = new DeviceStateMachine();
+  state.connecting();
+  state.connected(false);
+  assert.equal(state.snapshot.connection, 'online');
+  assert.equal(state.snapshot.power, false);
+});
+
 test('a disconnect changes power to off after the grace period', async () => {
   const state = new DeviceStateMachine(10);
   state.connecting();

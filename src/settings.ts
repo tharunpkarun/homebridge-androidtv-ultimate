@@ -13,5 +13,6 @@ export const INPUT_MAPPINGS_FILE = 'input-mappings.json';
 export const CLIENT_MODEL = 'Homebridge';
 export const CLIENT_VENDOR = 'Tharun P Karun';
 export const CLIENT_PACKAGE = 'homebridge-androidtv-ultimate';
-export const PROTOCOL_VERSION = 622;
+// Remote Service v2 feature mask: key, IME, voice, power, volume, and app links.
+export const REMOTE_FEATURE_MASK = 622;
 export const DEFAULT_DISCOVERY_INTERVAL_SECONDS = 60;

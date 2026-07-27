@@ -18,9 +18,15 @@ export class DeviceStateMachine extends EventEmitter {
     this.update({ connection: 'connecting', currentApp: undefined, error: undefined });
   }
 
-  connected(): void {
+  connected(power = true): void {
     this.clearDisconnectTimer();
-    this.update({ connection: 'online', power: true, currentApp: undefined, lastSeen: new Date().toISOString(), error: undefined });
+    this.update({
+      connection: 'online',
+      power,
+      currentApp: undefined,
+      lastSeen: new Date().toISOString(),
+      error: undefined,
+    });
   }
 
   disconnected(error?: Error): void {
