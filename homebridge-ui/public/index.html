@@ -150,7 +150,10 @@
   .atvu-check input { margin-top: 3px; }
   .atvu-input-row-wrap { margin-bottom: 9px; }
   .atvu-input-actions { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+  .atvu-input-search { min-width: 180px; width: auto; }
   .atvu-input-preset { min-width: 230px; width: auto; }
+  .atvu-input-catalog-status { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin: -5px 0 10px; }
+  .atvu-input-catalog-state { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; color: var(--atvu-muted); font-size: .68rem; margin: 5px 0 0; }
   .atvu-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
   .atvu-control-grid .atvu-check { padding: 9px; border: 1px solid var(--atvu-border); border-radius: 8px; background: var(--atvu-surface-soft); }
   .atvu-key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; margin-top: 10px; }
@@ -176,7 +179,7 @@
     .atvu-field-wide { grid-column: auto; }
     .atvu-input-row { grid-template-columns: 1fr; }
     .atvu-input-actions { width: 100%; justify-content: flex-start; }
-    .atvu-input-preset { width: 100%; }
+    .atvu-input-search, .atvu-input-preset { width: 100%; }
   }
 </style>
 
@@ -325,10 +328,16 @@
         <div class="atvu-section-header">
           <div><h4>Inputs</h4><div class="atvu-subtitle">Choose a ready-made app or source, or create a custom input. A reported foreground package can confirm the active input.</div></div>
           <div class="atvu-input-actions">
+            <input id="atvuInputSearch" class="atvu-input atvu-input-search" type="search" placeholder="Search catalog" aria-label="Search input catalog">
             <select id="atvuInputPreset" class="atvu-input atvu-input-preset" aria-label="Input preset"><option value="">Choose an input preset…</option></select>
             <button id="atvuAddInputPreset" class="atvu-button atvu-button-primary" type="button" disabled>Add selected</button>
             <button id="atvuAddInput" class="atvu-button" type="button">Create custom input</button>
           </div>
+        </div>
+        <div class="atvu-input-catalog-status">
+          <span id="atvuInputCatalogStatus" class="atvu-subtitle">The input catalog loads when this editor opens.</span>
+          <button id="atvuRefreshInputCatalog" class="atvu-button" type="button">Refresh catalog</button>
+          <a class="atvu-button" href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/edit/main/catalog/input-presets.json" target="_blank" rel="noopener noreferrer">Suggest a preset</a>
         </div>
         <div id="atvuInputRows"></div>
         <div class="atvu-callout" style="margin-top:10px">Presets only prefill editable values. HDMI uses standard Android key commands. Android has no portable direct USB command, so the USB preset opens the source selector; replace its key code if your TV provides a dedicated one.</div>
@@ -396,6 +405,10 @@
     let editorDevice = null
     let editorInputs = []
     let editorControls = null
+    let inputCatalog = { schemaVersion: 1, updatedAt: '', presets: [], source: 'bundled' }
+    let inputCatalogLoaded = false
+    let inputCatalogRefreshing = false
+    let inputCatalogRequest = null
     let lastUpdatedAt = null
     let lastDiagnostics = ''
     const testResults = new Map()
@@ -497,29 +510,6 @@
       volume: 'atvuControlVolume', mute: 'atvuControlMute', inputs: 'atvuControlInputs',
       wakeOnLan: 'atvuControlWakeOnLan',
     }
-    const inputPresets = [
-      { id: 'youtube', group: 'Streaming apps', label: 'YouTube', input: { name: 'YouTube', type: 'application', uri: 'com.google.android.youtube.tv' } },
-      { id: 'netflix', group: 'Streaming apps', label: 'Netflix', input: { name: 'Netflix', type: 'application', uri: 'com.netflix.ninja' } },
-      { id: 'prime-video', group: 'Streaming apps', label: 'Prime Video', input: { name: 'Prime Video', type: 'application', uri: 'com.amazon.amazonvideo.livingroom' } },
-      { id: 'disney-plus', group: 'Streaming apps', label: 'Disney+', input: { name: 'Disney+', type: 'application', uri: 'com.disney.disneyplus' } },
-      { id: 'apple-tv', group: 'Streaming apps', label: 'Apple TV', input: { name: 'Apple TV', type: 'application', uri: 'com.apple.atve.androidtv.appletv' } },
-      { id: 'plex', group: 'Streaming apps', label: 'Plex', input: { name: 'Plex', type: 'application', uri: 'com.plexapp.android' } },
-      { id: 'spotify', group: 'Streaming apps', label: 'Spotify', input: { name: 'Spotify', type: 'application', uri: 'com.spotify.tv.android' } },
-      { id: 'kodi', group: 'Media players', label: 'Kodi', input: { name: 'Kodi', type: 'application', uri: 'org.xbmc.kodi' } },
-      { id: 'vlc', group: 'Media players', label: 'VLC', input: { name: 'VLC', type: 'application', uri: 'org.videolan.vlc' } },
-      { id: 'home', group: 'TV and hardware sources', label: 'Home screen', input: { name: 'Home', type: 'home', keyCode: 3 } },
-      { id: 'live-tv', group: 'TV and hardware sources', label: 'Live TV / tuner', input: { name: 'Live TV', type: 'tuner', keyCode: 170 } },
-      { id: 'input-selector', group: 'TV and hardware sources', label: 'TV input selector', input: { name: 'Inputs', type: 'other', keyCode: 178 } },
-      { id: 'hdmi-1', group: 'TV and hardware sources', label: 'HDMI 1', input: { name: 'HDMI 1', type: 'hdmi', keyCode: 243 } },
-      { id: 'hdmi-2', group: 'TV and hardware sources', label: 'HDMI 2', input: { name: 'HDMI 2', type: 'hdmi', keyCode: 244 } },
-      { id: 'hdmi-3', group: 'TV and hardware sources', label: 'HDMI 3', input: { name: 'HDMI 3', type: 'hdmi', keyCode: 245 } },
-      { id: 'hdmi-4', group: 'TV and hardware sources', label: 'HDMI 4', input: { name: 'HDMI 4', type: 'hdmi', keyCode: 246 } },
-      { id: 'composite-1', group: 'TV and hardware sources', label: 'Composite 1', input: { name: 'Composite 1', type: 'composite', keyCode: 247 } },
-      { id: 'composite-2', group: 'TV and hardware sources', label: 'Composite 2', input: { name: 'Composite 2', type: 'composite', keyCode: 248 } },
-      { id: 'component-1', group: 'TV and hardware sources', label: 'Component 1', input: { name: 'Component 1', type: 'component', keyCode: 249 } },
-      { id: 'component-2', group: 'TV and hardware sources', label: 'Component 2', input: { name: 'Component 2', type: 'component', keyCode: 250 } },
-      { id: 'usb-selector', group: 'TV and hardware sources', label: 'USB (opens source selector)', input: { name: 'USB', type: 'usb', keyCode: 178 } },
-    ]
 
     function profileControlDefaults(profile = 'television') {
       const defaults = { power: true, remote: true, media: true, volume: true, mute: true, inputs: true, wakeOnLan: true }
@@ -850,26 +840,141 @@
 
     function renderInputPresetOptions() {
       const select = byId('atvuInputPreset')
+      const selected = select.value
+      const query = normalize(byId('atvuInputSearch').value)
+      const presets = (inputCatalog.presets || []).filter(preset => !query || normalize([
+        preset.name, preset.group, preset.id, preset.uri, preset.packageName,
+      ].filter(Boolean).join(' ')).includes(query))
       select.replaceChildren()
-      const placeholder = element('option', '', 'Choose an input preset…'); placeholder.value = ''; select.append(placeholder)
+      const placeholderText = !inputCatalogLoaded
+        ? 'Loading input catalog…'
+        : presets.length ? 'Choose an input preset…' : 'No matching presets'
+      const placeholder = element('option', '', placeholderText); placeholder.value = ''; select.append(placeholder)
       const groups = new Map()
-      inputPresets.forEach(preset => {
+      presets.forEach(preset => {
         if (!groups.has(preset.group)) {
           const group = element('optgroup'); group.label = preset.group; groups.set(preset.group, group); select.append(group)
         }
-        const option = element('option', '', preset.label); option.value = preset.id; groups.get(preset.group).append(option)
+        const option = element('option', '', preset.name); option.value = preset.id; groups.get(preset.group).append(option)
       })
-      byId('atvuAddInputPreset').disabled = true
+      if (presets.some(preset => preset.id === selected)) select.value = selected
+      select.disabled = !presets.length
+      byId('atvuAddInputPreset').disabled = !select.value
+    }
+
+    function renderInputCatalogStatus() {
+      const status = byId('atvuInputCatalogStatus')
+      const count = (inputCatalog.presets || []).length
+      const source = inputCatalog.source === 'remote' ? 'GitHub'
+        : inputCatalog.source === 'cache' ? 'last saved catalog' : 'bundled catalog'
+      if (!inputCatalogLoaded && inputCatalogRefreshing) status.textContent = 'Loading the input catalog…'
+      else if (inputCatalogRefreshing) status.textContent = `${count} preset${count === 1 ? '' : 's'} from ${source} · refreshing GitHub…`
+      else if (inputCatalog.warning) status.textContent = `${count} preset${count === 1 ? '' : 's'} from ${source} · ${inputCatalog.warning}`
+      else if (inputCatalogLoaded) {
+        const checked = inputCatalog.checkedAt || inputCatalog.fetchedAt
+        status.textContent = `${count} preset${count === 1 ? '' : 's'} from ${source} · catalog ${inputCatalog.updatedAt || 'date unavailable'}${checked ? ` · checked ${formatDate(checked)}` : ''}`
+      }
+      else status.textContent = 'The input catalog loads when this editor opens.'
+      byId('atvuRefreshInputCatalog').disabled = inputCatalogRefreshing
+    }
+
+    function applyInputCatalog(result) {
+      if (!result || !Array.isArray(result.presets)) throw new Error('The input catalog response is invalid')
+      inputCatalog = result
+      inputCatalogLoaded = true
+      renderInputPresetOptions()
+      renderInputCatalogStatus()
+      document.querySelectorAll('[data-atvu-input-index]').forEach(container => {
+        renderInputCatalogState(Number(container.dataset.atvuInputIndex), container)
+      })
+    }
+
+    async function loadInputCatalog() {
+      if (inputCatalogRequest) return inputCatalogRequest
+      const operation = (async () => {
+        if (!inputCatalogLoaded) {
+          inputCatalogRefreshing = true
+          renderInputPresetOptions(); renderInputCatalogStatus()
+          try {
+            applyInputCatalog(await homebridge.request('/input-catalog', { mode: 'local' }))
+          } catch (error) {
+            inputCatalog = { ...inputCatalog, warning: errorMessage(error) }
+          }
+        }
+        inputCatalogRefreshing = true
+        renderInputCatalogStatus()
+        try {
+          applyInputCatalog(await homebridge.request('/input-catalog', { mode: 'refresh' }))
+        } catch (error) {
+          inputCatalog = { ...inputCatalog, warning: `${errorMessage(error)}. Using the current catalog.` }
+        } finally {
+          inputCatalogRefreshing = false
+          renderInputPresetOptions(); renderInputCatalogStatus()
+        }
+      })()
+      inputCatalogRequest = operation.finally(() => { inputCatalogRequest = null })
+      return inputCatalogRequest
+    }
+
+    function catalogPresetConfig(preset) {
+      return {
+        presetId: preset.id,
+        name: preset.name,
+        type: preset.type,
+        uri: preset.uri,
+        packageName: preset.packageName,
+        keyCode: preset.keyCode,
+      }
+    }
+
+    function inputMatchesPreset(input, preset) {
+      return String(input.name || '') === String(preset.name || '')
+        && String(input.type || 'application') === String(preset.type || 'application')
+        && String(input.uri || '') === String(preset.uri || '')
+        && String(input.packageName || '') === String(preset.packageName || '')
+        && (input.keyCode ?? null) === (preset.keyCode ?? null)
+    }
+
+    function uniqueMatchingPreset(input) {
+      const matches = (inputCatalog.presets || []).filter(preset => inputMatchesPreset(input, preset))
+      return matches.length === 1 ? matches[0] : undefined
+    }
+
+    function renderInputCatalogState(index, container) {
+      container.replaceChildren()
+      const input = editorInputs[index]
+      if (!input) return
+      if (!input.presetId) {
+        const exact = uniqueMatchingPreset(input)
+        if (exact) container.append(element('span', '', `Matches catalog preset ${exact.name}; it will be linked when saved.`))
+        return
+      }
+      const preset = (inputCatalog.presets || []).find(item => item.id === input.presetId)
+      if (!preset) {
+        container.append(badge('Preset no longer listed', 'warning'), element('span', '', `Saved values are unchanged · catalog ID ${input.presetId}`))
+        return
+      }
+      if (!inputMatchesPreset(input, preset)) {
+        container.append(badge('Edited from catalog', 'warning'), element('span', '', preset.name))
+        container.append(action('Restore catalog defaults', () => {
+          const identifier = editorInputs[index]?.identifier
+          editorInputs[index] = { ...catalogPresetConfig(preset), ...(identifier ? { identifier } : {}) }
+          renderInputRows()
+        }))
+      } else {
+        container.append(badge('Catalog preset', 'success'), element('span', '', `${preset.name} · up to date`))
+      }
     }
 
     function addSelectedInputPreset() {
       const select = byId('atvuInputPreset')
-      const preset = inputPresets.find(item => item.id === select.value)
+      const preset = (inputCatalog.presets || []).find(item => item.id === select.value)
       if (!preset) return
-      const duplicate = editorInputs.some(input => (preset.input.uri && input.uri === preset.input.uri)
-        || (preset.input.keyCode !== undefined && input.keyCode === preset.input.keyCode && input.type === preset.input.type))
-      if (duplicate) return homebridge.toast.error(`${preset.label} is already configured. You can edit its existing row.`, 'Input already added')
-      editorInputs.push({ ...preset.input })
+      const duplicate = editorInputs.some(input => input.presetId === preset.id
+        || (preset.uri && input.uri === preset.uri)
+        || (preset.keyCode !== undefined && input.keyCode === preset.keyCode && input.type === preset.type))
+      if (duplicate) return homebridge.toast.error(`${preset.name} is already configured. You can edit its existing row.`, 'Input already added')
+      editorInputs.push(catalogPresetConfig(preset))
       select.value = ''; byId('atvuAddInputPreset').disabled = true
       renderInputRows()
     }
@@ -895,6 +1000,7 @@
       renderInputRows()
       byId('atvuDeviceEditor').hidden = false; byId('atvuNoEditor').hidden = true
       selectTab('settings')
+      void loadInputCatalog()
     }
 
     function renderInputRows() {
@@ -908,15 +1014,18 @@
         const detected = editorDevice?.id ? learnedMapping(editorDevice.id, inputIdentifier) : undefined
         const wrapper = element('div', 'atvu-input-row-wrap')
         const row = element('div', 'atvu-input-row')
-        const name = element('input', 'atvu-input'); name.placeholder = 'YouTube'; name.value = input.name || ''; name.addEventListener('input', () => { editorInputs[index].name = name.value })
+        const catalogState = element('div', 'atvu-input-catalog-state')
+        catalogState.dataset.atvuInputIndex = String(index)
+        const updateCatalogState = () => renderInputCatalogState(index, catalogState)
+        const name = element('input', 'atvu-input'); name.placeholder = 'YouTube'; name.value = input.name || ''; name.addEventListener('input', () => { editorInputs[index].name = name.value; updateCatalogState() })
         const type = element('select', 'atvu-input')
         ;[['application', 'Application'], ['home', 'Home Screen'], ['tuner', 'Tuner'], ['hdmi', 'HDMI'], ['composite', 'Composite Video'], ['svideo', 'S-Video'], ['component', 'Component Video'], ['dvi', 'DVI'], ['airplay', 'AirPlay'], ['usb', 'USB'], ['other', 'Other']].forEach(([value, label]) => {
           const option = element('option', '', label); option.value = value; type.append(option)
         })
-        type.value = input.type || 'application'; type.addEventListener('change', () => { editorInputs[index].type = type.value })
-        const uri = element('input', 'atvu-input atvu-mono'); uri.placeholder = 'Package, URI, or deep link'; uri.value = input.uri || ''; uri.addEventListener('input', () => { editorInputs[index].uri = uri.value })
-        const keyCode = element('input', 'atvu-input atvu-mono'); keyCode.type = 'number'; keyCode.min = '0'; keyCode.max = '1000'; keyCode.placeholder = 'Optional'; keyCode.value = input.keyCode ?? ''; keyCode.addEventListener('input', () => { editorInputs[index].keyCode = keyCode.value === '' ? undefined : Number(keyCode.value) })
-        const packageName = element('input', 'atvu-input atvu-mono'); packageName.placeholder = detected ? `Detected: ${detected.packageName}` : 'Android package (optional)'; packageName.value = input.packageName || ''; packageName.addEventListener('input', () => { editorInputs[index].packageName = packageName.value })
+        type.value = input.type || 'application'; type.addEventListener('change', () => { editorInputs[index].type = type.value; updateCatalogState() })
+        const uri = element('input', 'atvu-input atvu-mono'); uri.placeholder = 'Package, URI, or deep link'; uri.value = input.uri || ''; uri.addEventListener('input', () => { editorInputs[index].uri = uri.value; updateCatalogState() })
+        const keyCode = element('input', 'atvu-input atvu-mono'); keyCode.type = 'number'; keyCode.min = '0'; keyCode.max = '1000'; keyCode.placeholder = 'Optional'; keyCode.value = input.keyCode ?? ''; keyCode.addEventListener('input', () => { editorInputs[index].keyCode = keyCode.value === '' ? undefined : Number(keyCode.value); updateCatalogState() })
+        const packageName = element('input', 'atvu-input atvu-mono'); packageName.placeholder = detected ? `Detected: ${detected.packageName}` : 'Android package (optional)'; packageName.value = input.packageName || ''; packageName.addEventListener('input', () => { editorInputs[index].packageName = packageName.value; updateCatalogState() })
         const identifier = element('input', 'atvu-input'); identifier.type = 'number'; identifier.min = '1'; identifier.max = '255'; identifier.placeholder = 'ID'; identifier.value = input.identifier || ''; identifier.addEventListener('input', () => { editorInputs[index].identifier = identifier.value ? Number(identifier.value) : undefined })
         const remove = action('Remove', () => { editorInputs.splice(index, 1); renderInputRows() }); remove.classList.add('atvu-button-danger')
         const actions = element('div', 'atvu-input-row-actions'); actions.append(remove)
@@ -929,6 +1038,7 @@
           inputEditorField('HomeKit identifier', identifier, 'Optional stable ID from 1 to 255.'),
           actions,
         ); wrapper.append(row)
+        updateCatalogState(); wrapper.append(catalogState)
         if (detected) {
           const learned = element('div', 'atvu-learned-map')
           learned.append(element('span', '', `Automatically detected package: ${detected.packageName} · ${formatDate(detected.learnedAt)}`))
@@ -958,13 +1068,17 @@
       if (!name || !host) throw new Error('Device name and IP address or hostname are required')
       const incompleteInput = editorInputs.find(input => input.name?.trim() && !input.uri?.trim() && input.keyCode === undefined)
       if (incompleteInput) throw new Error(`Input ${incompleteInput.name.trim()} needs an Android package, URI, deep link, or key code`)
-      const inputs = editorInputs.filter(input => input.name?.trim() && (input.uri?.trim() || input.keyCode !== undefined)).map(input => ({
-        ...input,
-        name: input.name.trim(),
-        uri: input.uri?.trim() || undefined,
-        type: input.type || 'application',
-        packageName: input.packageName?.trim() || undefined,
-      }))
+      const inputs = editorInputs.filter(input => input.name?.trim() && (input.uri?.trim() || input.keyCode !== undefined)).map(input => {
+        const normalizedInput = {
+          ...input,
+          name: input.name.trim(),
+          uri: input.uri?.trim() || undefined,
+          type: input.type || 'application',
+          packageName: input.packageName?.trim() || undefined,
+        }
+        const matchingPreset = normalizedInput.presetId ? undefined : uniqueMatchingPreset(normalizedInput)
+        return { ...normalizedInput, ...(matchingPreset ? { presetId: matchingPreset.id } : {}) }
+      })
       const explicitPackages = inputs.map(input => input.packageName).filter(Boolean)
       const duplicatePackage = explicitPackages.find((value, index) => explicitPackages.indexOf(value) !== index)
       if (duplicatePackage) throw new Error(`Android package ${duplicatePackage} is assigned to more than one app input`)
@@ -1001,6 +1115,8 @@
         else platform.devices = [...(platform.devices || []), device]
         await savePlatform()
         editorDevice = device
+        editorInputs = (device.inputs || []).map(input => ({ ...input }))
+        renderInputRows()
         const exposureNotice = device.exposureMode === 'standalone'
           ? ' Restart Homebridge, then add this TV to Apple Home separately with the Homebridge setup code.'
           : ' Restart Homebridge to apply accessory changes.'
@@ -1150,7 +1266,9 @@
     byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null; editorControls = null })
     byId('atvuApplyControlDefaults').addEventListener('click', applyProfileControlDefaults)
     byId('atvuEditType').addEventListener('change', applyProfileControlDefaults)
+    byId('atvuInputSearch').addEventListener('input', renderInputPresetOptions)
     byId('atvuInputPreset').addEventListener('change', event => { byId('atvuAddInputPreset').disabled = !event.target.value })
+    byId('atvuRefreshInputCatalog').addEventListener('click', () => { void loadInputCatalog() })
     byId('atvuAddInputPreset').addEventListener('click', addSelectedInputPreset)
     byId('atvuAddInput').addEventListener('click', () => { editorInputs.push({ name: '', type: 'application' }); renderInputRows() })
     byId('atvuSaveDevice').addEventListener('click', () => saveEditedDevice(false)); byId('atvuSaveAndPair').addEventListener('click', () => saveEditedDevice(true))
@@ -1163,7 +1281,7 @@
     const savedTheme = localStorage.getItem('atvu-theme') || 'auto'
     byId('atvuTheme').value = ['auto', 'light', 'dark'].includes(savedTheme) ? savedTheme : 'auto'
     byId('atvuApp').dataset.theme = byId('atvuTheme').value
-    renderInputPresetOptions()
+    renderInputPresetOptions(); renderInputCatalogStatus()
 
     Promise.all([homebridge.getPluginConfig(), homebridge.request('/about')]).then(async ([config, details]) => {
       platform = config[0] || platform; platform.devices ||= []; aboutInfo = details || {}

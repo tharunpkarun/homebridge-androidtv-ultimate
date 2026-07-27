@@ -33,10 +33,15 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /Android key code/);
   assert.match(html, /id="atvuInputPreset"/);
   assert.match(html, /id="atvuAddInputPreset"/);
+  assert.match(html, /id="atvuInputSearch"/);
+  assert.match(html, /id="atvuRefreshInputCatalog"/);
   assert.match(html, /Create custom input/);
-  for (const preset of ['YouTube', 'Netflix', 'Prime Video', 'Disney+', 'HDMI 1', 'USB (opens source selector)']) {
-    assert.ok(html.includes(`label: '${preset}'`));
-  }
+  assert.match(html, /Suggest a preset/);
+  assert.match(html, /loadInputCatalog/);
+  assert.match(html, /Edited from catalog/);
+  assert.match(html, /Restore catalog defaults/);
+  assert.match(html, /Preset no longer listed/);
+  assert.doesNotMatch(html, /const inputPresets =/);
   for (const profile of ['Streaming Stick', 'Apple TV', 'Audio Receiver', 'Speaker', 'HomePod']) {
     assert.match(html, new RegExp(`>${profile}<`));
   }

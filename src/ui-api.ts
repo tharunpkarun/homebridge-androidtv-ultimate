@@ -18,6 +18,7 @@ import { CredentialStore } from './storage/credential-store';
 import { createEncryptedBackup, restoreEncryptedBackup } from './storage/backup';
 import { previewLegacyMigration } from './storage/migration';
 import { InputMappingStore } from './storage/input-mapping-store';
+import { InputCatalogService, type InputCatalogResult } from './input/input-catalog';
 
 interface PairingSession {
   client: PairingClient;
@@ -25,6 +26,16 @@ interface PairingSession {
 }
 
 const sessions = new Map<string, PairingSession>();
+const inputCatalogServices = new Map<string, InputCatalogService>();
+
+function inputCatalogService(storagePath: string): InputCatalogService {
+  let service = inputCatalogServices.get(storagePath);
+  if (!service) {
+    service = new InputCatalogService(storagePath);
+    inputCatalogServices.set(storagePath, service);
+  }
+  return service;
+}
 
 interface PackageManifest {
   name?: string;
@@ -100,6 +111,14 @@ export async function importBackup(
 
 export async function discover(storagePath: string) {
   return new DiscoveryCache(storagePath).scan();
+}
+
+export async function inputCatalog(
+  storagePath: string,
+  mode: 'local' | 'refresh' = 'local',
+): Promise<InputCatalogResult> {
+  const service = inputCatalogService(storagePath);
+  return mode === 'refresh' ? service.refresh() : service.local();
 }
 
 export async function beginPairing(

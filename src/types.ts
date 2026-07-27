@@ -2,6 +2,7 @@ import type { PlatformConfig } from 'homebridge';
 
 export interface AppInputConfig {
   name: string;
+  presetId?: string;
   uri?: string;
   identifier?: number;
   packageName?: string;

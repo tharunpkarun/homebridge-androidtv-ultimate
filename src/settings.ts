@@ -9,6 +9,8 @@ export const CREDENTIALS_FILE = 'credentials.json';
 export const STATUS_FILE = 'status.json';
 export const DISCOVERY_FILE = 'discovery.json';
 export const INPUT_MAPPINGS_FILE = 'input-mappings.json';
+export const INPUT_CATALOG_CACHE_FILE = 'input-catalog-cache.json';
+export const INPUT_CATALOG_URL = 'https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/main/catalog/input-presets.json';
 
 export const CLIENT_MODEL = 'Homebridge';
 export const CLIENT_VENDOR = 'Tharun P Karun';

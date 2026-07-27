@@ -23,4 +23,5 @@ jobs:
       - run: npm install
       - run: npm run check
       - run: npm run build
+      - run: npm run validate:catalog
       - run: npm pack --dry-run

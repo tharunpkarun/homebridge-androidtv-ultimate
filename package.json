@@ -28,6 +28,8 @@
   "files": [
     "dist",
     "homebridge-ui",
+    "catalog",
+    "scripts",
     "config.schema.json",
     "README.md",
     "LICENSE",
@@ -40,7 +42,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run clean && tsc -p tsconfig.test.json && node --test .test-dist/test/*.test.js",
     "check": "npm run typecheck && npm test",
-    "prepublishOnly": "npm run check && npm run build"
+    "validate:catalog": "node scripts/validate-input-catalog.js",
+    "prepublishOnly": "npm run check && npm run build && npm run validate:catalog"
   },
   "keywords": [
     "homebridge-plugin",

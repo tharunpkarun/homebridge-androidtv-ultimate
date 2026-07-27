@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-28",
+  "presets": [
+    {
+      "id": "apple-tv",
+      "group": "Streaming apps",
+      "name": "Apple TV",
+      "type": "application",
+      "uri": "com.apple.atve.androidtv.appletv"
+    },
+    {
+      "id": "disney-plus",
+      "group": "Streaming apps",
+      "name": "Disney+",
+      "type": "application",
+      "uri": "com.disney.disneyplus"
+    },
+    {
+      "id": "netflix",
+      "group": "Streaming apps",
+      "name": "Netflix",
+      "type": "application",
+      "uri": "com.netflix.ninja"
+    },
+    {
+      "id": "plex",
+      "group": "Streaming apps",
+      "name": "Plex",
+      "type": "application",
+      "uri": "com.plexapp.android"
+    },
+    {
+      "id": "prime-video",
+      "group": "Streaming apps",
+      "name": "Prime Video",
+      "type": "application",
+      "uri": "com.amazon.amazonvideo.livingroom"
+    },
+    {
+      "id": "spotify",
+      "group": "Streaming apps",
+      "name": "Spotify",
+      "type": "application",
+      "uri": "com.spotify.tv.android"
+    },
+    {
+      "id": "youtube",
+      "group": "Streaming apps",
+      "name": "YouTube",
+      "type": "application",
+      "uri": "com.google.android.youtube.tv"
+    },
+    {
+      "id": "kodi",
+      "group": "Media players",
+      "name": "Kodi",
+      "type": "application",
+      "uri": "org.xbmc.kodi"
+    },
+    {
+      "id": "vlc",
+      "group": "Media players",
+      "name": "VLC",
+      "type": "application",
+      "uri": "org.videolan.vlc"
+    },
+    {
+      "id": "component-1",
+      "group": "TV and hardware sources",
+      "name": "Component 1",
+      "type": "component",
+      "keyCode": 249
+    },
+    {
+      "id": "component-2",
+      "group": "TV and hardware sources",
+      "name": "Component 2",
+      "type": "component",
+      "keyCode": 250
+    },
+    {
+      "id": "composite-1",
+      "group": "TV and hardware sources",
+      "name": "Composite 1",
+      "type": "composite",
+      "keyCode": 247
+    },
+    {
+      "id": "composite-2",
+      "group": "TV and hardware sources",
+      "name": "Composite 2",
+      "type": "composite",
+      "keyCode": 248
+    },
+    {
+      "id": "hdmi-1",
+      "group": "TV and hardware sources",
+      "name": "HDMI 1",
+      "type": "hdmi",
+      "keyCode": 243
+    },
+    {
+      "id": "hdmi-2",
+      "group": "TV and hardware sources",
+      "name": "HDMI 2",
+      "type": "hdmi",
+      "keyCode": 244
+    },
+    {
+      "id": "hdmi-3",
+      "group": "TV and hardware sources",
+      "name": "HDMI 3",
+      "type": "hdmi",
+      "keyCode": 245
+    },
+    {
+      "id": "hdmi-4",
+      "group": "TV and hardware sources",
+      "name": "HDMI 4",
+      "type": "hdmi",
+      "keyCode": 246
+    },
+    {
+      "id": "home",
+      "group": "TV and hardware sources",
+      "name": "Home screen",
+      "type": "home",
+      "keyCode": 3
+    },
+    {
+      "id": "input-selector",
+      "group": "TV and hardware sources",
+      "name": "TV input selector",
+      "type": "other",
+      "keyCode": 178
+    },
+    {
+      "id": "live-tv",
+      "group": "TV and hardware sources",
+      "name": "Live TV / tuner",
+      "type": "tuner",
+      "keyCode": 170
+    },
+    {
+      "id": "usb-selector",
+      "group": "TV and hardware sources",
+      "name": "USB (opens source selector)",
+      "type": "usb",
+      "keyCode": 178
+    }
+  ]
+}

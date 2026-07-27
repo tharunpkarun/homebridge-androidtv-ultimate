@@ -209,7 +209,11 @@ Select any screenshot to open the full-resolution view.
 
 An input has a display name, Apple Home type, stable identifier, and one command: either an Android package/URI/deep link or a numeric Android key code. Supported Apple Home types are Application, Home Screen, Tuner, HDMI, Composite Video, S-Video, Component Video, DVI, AirPlay, USB, and Other.
 
-The device editor includes a categorized preset dropdown. It can prefill YouTube, Netflix, Prime Video, Disney+, Apple TV, Plex, Spotify, Kodi, VLC, Home, Live TV, the TV input selector, HDMI 1–4, Composite 1–2, Component 1–2, and USB. Every generated row remains editable, and **Create custom input** adds a blank row for any other package, deep link, source, or Android key command.
+The device editor includes a searchable, categorized preset catalog for apps and hardware sources. The official version is maintained in [`catalog/input-presets.json`](catalog/input-presets.json), so contributors can add or correct presets through a pull request. After a catalog change reaches `main`, installed plugins receive it without requiring a new npm release.
+
+Opening the editor shows the bundled or last-known-good catalog immediately and refreshes it from [GitHub's raw catalog](https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/main/catalog/input-presets.json) in the background. A loading/status line identifies whether the current entries came from GitHub, the local cache, or the bundled fallback. Timeouts, invalid JSON, incompatible schemas, and GitHub outages never replace a valid cache. **Refresh catalog** retries manually, while **Suggest a preset** opens the official file for a GitHub contribution.
+
+Every generated row remains editable, and **Create custom input** adds a blank row for any other package, deep link, source, or Android key command. Catalog-linked rows show **Edited from catalog** after a local change and offer **Restore catalog defaults**. Refreshing the catalog never rewrites saved inputs automatically; even a removed preset keeps its saved values.
 
 App presets use their standard Android TV package IDs. Hardware presets use Android `KeyEvent` values. HDMI has portable direct key commands; Android does not define a portable direct USB command, so the USB preset opens the TV's source selector with key code `178`. Replace that value when the television firmware exposes a dedicated USB command.
 
@@ -299,6 +303,8 @@ The encryption key is derived from a passphrase with `scrypt`. The passphrase is
 
 Restoring replaces AndroidTV Ultimate's saved configuration and plugin data, then requires a Homebridge restart. For a complete Homebridge reinstall, also create a full Homebridge backup so the Apple Home bridge identity, cached accessories, and other plugins are preserved.
 
+The public input-catalog cache is deliberately excluded from encrypted backups because it contains no personal data and is recreated from the bundled or GitHub catalog.
+
 ## Configuration
 
 The dashboard creates and maintains device identities automatically. The main options are:
@@ -316,6 +322,7 @@ The dashboard creates and maintains device identities automatically. The main op
 | `controls.*` | Profile default | Enable Power, Remote, Media, Volume, Mute, Inputs, and Wake-on-LAN independently |
 | `controls.keyMappings.*` | Android default | Override the numeric Android key code for an individual remote, media, or volume-step command |
 | `inputs[].type` | `application` | Apple Home input type, including Application, HDMI, Tuner, USB, and the other HAP input types |
+| `inputs[].presetId` | — | Optional official catalog identity used to report local edits and restore defaults; it never enables automatic updates |
 | `inputs[].uri` | — | Android package, URI, or deep link to launch; optional when `keyCode` is set |
 | `inputs[].keyCode` | — | Numeric Android key command used instead of a URI |
 | `inputs[].packageName` | — | Optional foreground Android package used for TV-confirmed active-input feedback |
@@ -471,6 +478,7 @@ Changing an existing TV from bridged to standalone removes its old bridged tile.
 ## Security and privacy
 
 - Control traffic remains on the local network.
+- Opening the input editor checks the public catalog on `raw.githubusercontent.com`; the last valid response is cached locally and no TV, Homebridge, or account identifiers are sent.
 - Each TV receives its own pairing identity.
 - Credentials are stored outside `config.json` with owner-only permissions.
 - Diagnostics always exclude certificates and private keys and redact network/device identifiers by default.

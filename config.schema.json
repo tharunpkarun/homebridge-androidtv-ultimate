@@ -178,6 +178,11 @@
                 ],
                 "properties": {
                   "name": { "title": "Name", "type": "string" },
+                  "presetId": {
+                    "title": "Input Catalog Preset",
+                    "description": "Optional catalog identity used to show local edits and restore catalog defaults. Saved inputs are never updated automatically.",
+                    "type": "string"
+                  },
                   "uri": { "title": "Android TV URI or Package", "type": "string" },
                   "type": {
                     "title": "HomeKit Input Type",

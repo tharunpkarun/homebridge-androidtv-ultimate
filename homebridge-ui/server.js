@@ -26,6 +26,10 @@
         return { cancelled: true }
       }))
       this.onRequest('/status', () => this.wrap(() => api.status(this.homebridgeStoragePath)))
+      this.onRequest('/input-catalog', payload => this.wrap(() => api.inputCatalog(
+        this.homebridgeStoragePath,
+        payload?.mode === 'refresh' ? 'refresh' : 'local',
+      )))
       this.onRequest('/input-mappings/clear', payload => this.wrap(() => api.clearInputMapping(
         this.homebridgeStoragePath,
         payload.deviceId,
