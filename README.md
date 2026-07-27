@@ -156,7 +156,7 @@ The custom plugin modal is organized into four responsive tabs:
 
 - **Dashboard** — setup progress, discovered/configured/paired/online totals, and device health.
 - **Devices** — explicit TV names, manufacturer/model, pairing and power state, endpoints, mDNS identity, hardware ID, first/last seen timestamps, Wake-on-LAN readiness, app inputs, and connection testing.
-- **Settings** — platform behavior, manual device editing, HomeKit profile, network details, Wake-on-LAN, and app-input management.
+- **Settings** — platform behavior, manual device editing, HomeKit profile, bridged/standalone Apple Home exposure, network details, Wake-on-LAN, and app-input management.
 - **Tools & Support** — package/runtime details, GitHub bug reporting, privacy-safe diagnostics, encrypted backup/restore, and legacy migration.
 
 The dashboard supports automatic, light, and dark themes. Automatic mode follows the browser or operating-system color preference.
@@ -288,7 +288,8 @@ The dashboard creates and maintains device identities automatically. The main op
 | `pairingPort` | `6467` | Remote Service v2 pairing port |
 | `mac` | — | Optional network MAC for identity matching and Wake-on-LAN |
 | `broadcastAddress` | `255.255.255.255` | Wake-on-LAN broadcast destination |
-| `deviceType` | `television` | HomeKit category: `television` or `settopbox` |
+| `deviceType` | `television` | Apple Home profile: `television` or `settopbox` |
+| `exposureMode` | `bridged` | `bridged` keeps the TV on the Homebridge bridge; `standalone` advertises the exact profile category |
 | `inputs[].packageName` | — | Optional foreground Android package used for TV-confirmed active-input feedback |
 
 Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by discovery and should normally not be edited manually.
@@ -309,6 +310,7 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
       "remotePort": 6466,
       "pairingPort": 6467,
       "deviceType": "television",
+      "exposureMode": "bridged",
       "mac": "AA:BB:CC:DD:EE:FF",
       "broadcastAddress": "192.168.1.255",
       "inputs": [
@@ -323,6 +325,14 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
   ]
 }
 ```
+
+### Apple Home glyphs and exposure
+
+The Television service is marked as the primary HomeKit service in both exposure modes, so bridged TVs use a television-style tile instead of the generic house glyph.
+
+Apple's HAP protocol advertises the `TELEVISION` and `TV_SET_TOP_BOX` categories only for independently published accessories. Choose **Standalone accessory** when the exact Television or Set-top Box glyph matters. After restarting Homebridge, add that TV to Apple Home separately with the Homebridge setup code.
+
+Changing an existing TV from bridged to standalone removes its old bridged tile. Apple Home treats the standalone TV as a new accessory, so its room, scenes, and automations may need to be assigned again. The Android TV pairing credentials remain safely stored in Homebridge and do not need to be recreated.
 
 ## Troubleshooting
 

@@ -28,6 +28,7 @@ export interface AndroidTvDeviceConfig {
   mac?: string;
   broadcastAddress?: string;
   deviceType?: 'television' | 'settopbox';
+  exposureMode?: 'bridged' | 'standalone';
   inputs?: AppInputConfig[];
 }
 

@@ -284,7 +284,8 @@
         </div>
         <div class="atvu-form-grid">
           <div class="atvu-field"><label for="atvuEditName">TV name *</label><input id="atvuEditName" class="atvu-input"><span class="atvu-help">This is the name shown in Apple Home.</span></div>
-          <div class="atvu-field"><label for="atvuEditType">HomeKit profile</label><select id="atvuEditType" class="atvu-input"><option value="television">Television</option><option value="settopbox">Set-top box</option></select></div>
+          <div class="atvu-field"><label for="atvuEditType">HomeKit profile</label><select id="atvuEditType" class="atvu-input"><option value="television">Television</option><option value="settopbox">Set-top box</option></select><span class="atvu-help">Selects the exact glyph for standalone accessories.</span></div>
+          <div class="atvu-field atvu-field-wide"><label for="atvuEditExposure">Apple Home exposure</label><select id="atvuEditExposure" class="atvu-input"><option value="bridged">Homebridge bridge (default)</option><option value="standalone">Standalone accessory (exact profile glyph)</option></select><span class="atvu-help">Standalone TVs must be added to Apple Home separately. Changing exposure can remove the old bridged tile, so choose a room and rebuild affected automations after pairing.</span></div>
           <div class="atvu-field"><label for="atvuEditManufacturer">Manufacturer</label><input id="atvuEditManufacturer" class="atvu-input" placeholder="Not advertised"></div>
           <div class="atvu-field"><label for="atvuEditModel">Model</label><input id="atvuEditModel" class="atvu-input" placeholder="Not advertised"></div>
           <div class="atvu-field"><label for="atvuEditHost">IP address or hostname *</label><input id="atvuEditHost" class="atvu-input atvu-mono"></div>
@@ -458,6 +459,7 @@
         model: device.model,
         manufacturer: device.manufacturer,
         deviceType: device.deviceType || 'television',
+        exposureMode: device.exposureMode || 'bridged',
         inputs: device.inputs || [],
       }
     }
@@ -519,6 +521,7 @@
         if (mode === 'configured') {
           facts.append(
             fact('HomeKit profile', merged.deviceType === 'settopbox' ? 'Set-top box' : 'Television'),
+            fact('Apple Home exposure', merged.exposureMode === 'standalone' ? 'Standalone · pair separately' : 'Homebridge bridge'),
             fact('App inputs', (merged.inputs || []).length),
             fact('Wake-on-LAN', merged.mac ? `Ready via ${merged.broadcastAddress || '255.255.255.255'}` : 'MAC address required'),
             fact('Paired since', pairing ? formatDate(pairing.pairedAt) : 'Not paired'),
@@ -717,12 +720,13 @@
       const base = device ? toConfig(device) : {
         id: `manual-${Date.now().toString(36)}`,
         name: '', host: '', remotePort: 6466, pairingPort: 6467,
-        broadcastAddress: '255.255.255.255', deviceType: 'television', inputs: [],
+        broadcastAddress: '255.255.255.255', deviceType: 'television', exposureMode: 'bridged', inputs: [],
       }
       editorDevice = { ...base }
       editorInputs = (base.inputs || []).map(input => ({ ...input }))
       byId('atvuEditorTitle').textContent = base.name ? `Configure ${base.name}` : 'Add television manually'
       setInputValue('atvuEditName', base.name); setInputValue('atvuEditType', base.deviceType || 'television')
+      setInputValue('atvuEditExposure', base.exposureMode || 'bridged')
       setInputValue('atvuEditManufacturer', base.manufacturer); setInputValue('atvuEditModel', base.model)
       setInputValue('atvuEditHost', base.host); setInputValue('atvuEditHostname', base.hostname)
       setInputValue('atvuEditRemotePort', base.remotePort || 6466); setInputValue('atvuEditPairingPort', base.pairingPort || 6467)
@@ -792,6 +796,7 @@
         id: byId('atvuEditId').value.trim() || editorDevice.id,
         name, host,
         deviceType: byId('atvuEditType').value,
+        exposureMode: byId('atvuEditExposure').value,
         manufacturer: optional('atvuEditManufacturer'), model: optional('atvuEditModel'), hostname: optional('atvuEditHostname'),
         remotePort: Number(byId('atvuEditRemotePort').value || 6466), pairingPort: Number(byId('atvuEditPairingPort').value || 6467),
         mac: optional('atvuEditMac'), broadcastAddress: optional('atvuEditBroadcast'), inputs,
@@ -806,7 +811,10 @@
         else platform.devices = [...(platform.devices || []), device]
         await savePlatform()
         editorDevice = device
-        homebridge.toast.success('Television configuration saved. Restart Homebridge to apply accessory changes.', device.name)
+        const exposureNotice = device.exposureMode === 'standalone'
+          ? ' Restart Homebridge, then add this TV to Apple Home separately with the Homebridge setup code.'
+          : ' Restart Homebridge to apply accessory changes.'
+        homebridge.toast.success(`Television configuration saved.${exposureNotice}`, device.name)
         await refresh()
         if (pairAfter) await beginPair(device)
       } catch (error) {

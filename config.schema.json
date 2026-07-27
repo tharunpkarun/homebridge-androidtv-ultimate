@@ -104,11 +104,22 @@
             },
             "deviceType": {
               "title": "HomeKit Device Type",
+              "description": "Controls the exact Apple Home glyph when this TV is exposed as a standalone accessory.",
               "type": "string",
               "default": "television",
               "oneOf": [
                 { "title": "Television", "enum": ["television"] },
                 { "title": "Set-top Box", "enum": ["settopbox"] }
+              ]
+            },
+            "exposureMode": {
+              "title": "Apple Home Exposure",
+              "description": "Bridge keeps the TV on the existing Homebridge bridge. Standalone advertises the exact Television or Set-top Box category and must be paired with Apple Home separately.",
+              "type": "string",
+              "default": "bridged",
+              "oneOf": [
+                { "title": "Homebridge Bridge", "enum": ["bridged"] },
+                { "title": "Standalone Accessory", "enum": ["standalone"] }
               ]
             },
             "inputs": {

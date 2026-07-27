@@ -12,6 +12,7 @@ import type { AndroidTvDeviceConfig, AndroidTvPlatformConfig, DeviceSnapshot, Le
 import { DEFAULT_DISCOVERY_INTERVAL_SECONDS, PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { DiscoveryCache } from './network/discovery-cache';
 import { InputMappingStore } from './storage/input-mapping-store';
+import { homeKitPresentation } from './homekit/presentation';
 
 export class AndroidTvPlatform implements DynamicPlatformPlugin {
   readonly Service: typeof Service;
@@ -28,7 +29,7 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
   constructor(
     readonly log: Logger,
     private readonly config: AndroidTvPlatformConfig,
-    private readonly api: API,
+    readonly api: API,
   ) {
     this.Service = api.hap.Service;
     this.Characteristic = api.hap.Characteristic;
@@ -86,30 +87,55 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
 
   private async synchronizeAccessories(): Promise<void> {
     const configured = (this.config.devices ?? []).filter(device => device.id && device.name && device.host);
-    const expected = new Set<string>();
+    const expectedBridged = new Set<string>();
     for (const configuredDevice of configured) {
       const device = await this.discoveryCache.resolveDevice(configuredDevice);
       this.runtimeDevices.set(device.id, device);
       const uuid = this.api.hap.uuid.generate(`androidtv-ultimate:${device.id}`);
-      expected.add(uuid);
+      const presentation = homeKitPresentation(device, {
+        TELEVISION: this.api.hap.Categories.TELEVISION,
+        TV_SET_TOP_BOX: this.api.hap.Categories.TV_SET_TOP_BOX,
+      });
       let accessory = this.cachedAccessories.get(uuid);
-      if (!accessory) {
-        accessory = new this.api.platformAccessory(device.name, uuid);
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-        this.cachedAccessories.set(uuid, accessory);
+      if (presentation.standalone && accessory) {
+        this.log.warn('[%s] Moving from the Homebridge bridge to a standalone Apple Home accessory.', device.name);
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        this.cachedAccessories.delete(uuid);
+        accessory = undefined;
       }
-      accessory.displayName = device.name;
+      const isNew = !accessory;
+      if (!accessory) {
+        accessory = new this.api.platformAccessory(
+          device.name,
+          uuid,
+          presentation.category as PlatformAccessory['category'],
+        );
+      }
+      accessory.updateDisplayName(device.name);
+      accessory.category = presentation.category as PlatformAccessory['category'];
       accessory.context.deviceId = device.id;
       const credentials = await this.credentialStore.get(device.id);
       const inputMappings = await this.inputMappingStore.list(device.id);
       const previous = this.handlers.get(uuid);
       previous?.stop();
       this.handlers.set(uuid, new AndroidTvAccessory(this, accessory, device, credentials, inputMappings));
+      if (presentation.standalone) {
+        this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
+        this.log.info('[%s] Published as a standalone Apple Home accessory; pair it separately with the Homebridge setup code.', device.name);
+      } else {
+        expectedBridged.add(uuid);
+        if (isNew) {
+          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+          this.cachedAccessories.set(uuid, accessory);
+        } else {
+          this.api.updatePlatformAccessories([accessory]);
+        }
+      }
       this.log.info('[%s] %s at %s:%d', device.name, credentials ? 'Ready' : 'Awaiting pairing', device.host, device.remotePort ?? 6466);
     }
 
     const stale = [...this.cachedAccessories.entries()]
-      .filter(([uuid]) => !expected.has(uuid))
+      .filter(([uuid]) => !expectedBridged.has(uuid))
       .map(([, accessory]) => accessory);
     if (stale.length > 0) {
       for (const accessory of stale) {

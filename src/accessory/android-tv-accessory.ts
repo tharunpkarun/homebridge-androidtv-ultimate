@@ -10,6 +10,7 @@ import { AndroidKeyCode } from '../protocol/remote-messages';
 import { RemoteServiceV2Transport } from '../protocol/v2-transport';
 import type { AndroidTvTransport } from '../protocol/transport';
 import { wakeOnLan } from '../network/wol';
+import { applyHomeKitPresentation, homeKitPresentation } from '../homekit/presentation';
 import {
   ActiveInputLearner,
   applyLearnedMappings,
@@ -51,6 +52,10 @@ export class AndroidTvAccessory {
 
     this.television = accessory.getService(Service.Television)
       ?? accessory.addService(Service.Television, device.name, 'television');
+    applyHomeKitPresentation(accessory, this.television, homeKitPresentation(device, {
+      TELEVISION: platform.api.hap.Categories.TELEVISION,
+      TV_SET_TOP_BOX: platform.api.hap.Categories.TV_SET_TOP_BOX,
+    }));
     this.television
       .setCharacteristic(Characteristic.ConfiguredName, device.name)
       .setCharacteristic(Characteristic.SleepDiscoveryMode, Characteristic.SleepDiscoveryMode.ALWAYS_DISCOVERABLE);
