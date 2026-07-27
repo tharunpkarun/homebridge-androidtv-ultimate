@@ -2,7 +2,7 @@
 
 All notable changes are documented here.
 
-## Unreleased
+## 0.3.5 - 2026-07-28
 
 - Mark the Television service as primary so bridged TVs no longer use the generic house glyph in Apple Home.
 - Apply the configured Television or Set-top Box HAP category and add an opt-in standalone exposure mode for exact profile glyphs.
