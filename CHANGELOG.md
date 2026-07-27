@@ -2,6 +2,10 @@
 
 All notable changes are documented here.
 
+## Unreleased
+
+- Add a categorized input-preset dropdown for popular Android TV apps, Home, tuner, HDMI, analog sources, input selection, and USB while retaining fully editable custom inputs.
+
 ## 0.3.5 - 2026-07-28
 
 - Mark the Television service as primary so bridged TVs no longer use the generic house glyph in Apple Home.

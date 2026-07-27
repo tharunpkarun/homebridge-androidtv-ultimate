@@ -209,6 +209,10 @@ Select any screenshot to open the full-resolution view.
 
 An input has a display name, Apple Home type, stable identifier, and one command: either an Android package/URI/deep link or a numeric Android key code. Supported Apple Home types are Application, Home Screen, Tuner, HDMI, Composite Video, S-Video, Component Video, DVI, AirPlay, USB, and Other.
 
+The device editor includes a categorized preset dropdown. It can prefill YouTube, Netflix, Prime Video, Disney+, Apple TV, Plex, Spotify, Kodi, VLC, Home, Live TV, the TV input selector, HDMI 1–4, Composite 1–2, Component 1–2, and USB. Every generated row remains editable, and **Create custom input** adds a blank row for any other package, deep link, source, or Android key command.
+
+App presets use their standard Android TV package IDs. Hardware presets use Android `KeyEvent` values. HDMI has portable direct key commands; Android does not define a portable direct USB command, so the USB preset opens the TV's source selector with key code `178`. Replace that value when the television firmware exposes a dedicated USB command.
+
 Remote Service v2 can launch Android app links and report the foreground Android package. When the TV reports a matching package, Apple Home selects that input automatically—even if the app was opened with the physical remote or another controller.
 
 For a direct package launch, the URI can also act as the package mapping:

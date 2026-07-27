@@ -149,6 +149,8 @@
   .atvu-check { display: flex; gap: 8px; align-items: flex-start; color: var(--atvu-text); font-size: .76rem; }
   .atvu-check input { margin-top: 3px; }
   .atvu-input-row-wrap { margin-bottom: 9px; }
+  .atvu-input-actions { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+  .atvu-input-preset { min-width: 230px; width: auto; }
   .atvu-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
   .atvu-control-grid .atvu-check { padding: 9px; border: 1px solid var(--atvu-border); border-radius: 8px; background: var(--atvu-surface-soft); }
   .atvu-key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; margin-top: 10px; }
@@ -173,6 +175,8 @@
     .atvu-form-grid { grid-template-columns: 1fr; }
     .atvu-field-wide { grid-column: auto; }
     .atvu-input-row { grid-template-columns: 1fr; }
+    .atvu-input-actions { width: 100%; justify-content: flex-start; }
+    .atvu-input-preset { width: 100%; }
   }
 </style>
 
@@ -318,8 +322,16 @@
         <div class="atvu-section-header" style="margin-top:12px"><div><h4>Android key-code mapping</h4><div class="atvu-subtitle">Defaults follow Android KeyEvent. Change only a command your device handles differently.</div></div></div>
         <div id="atvuKeyMappings" class="atvu-key-grid"></div>
         <hr class="atvu-divider">
-        <div class="atvu-section-header"><div><h4>Inputs</h4><div class="atvu-subtitle">Expose apps, deep links, HDMI, tuner, USB, or custom Android key commands. A reported foreground package can confirm the active input.</div></div><button id="atvuAddInput" class="atvu-button" type="button">Add input</button></div>
+        <div class="atvu-section-header">
+          <div><h4>Inputs</h4><div class="atvu-subtitle">Choose a ready-made app or source, or create a custom input. A reported foreground package can confirm the active input.</div></div>
+          <div class="atvu-input-actions">
+            <select id="atvuInputPreset" class="atvu-input atvu-input-preset" aria-label="Input preset"><option value="">Choose an input preset…</option></select>
+            <button id="atvuAddInputPreset" class="atvu-button atvu-button-primary" type="button" disabled>Add selected</button>
+            <button id="atvuAddInput" class="atvu-button" type="button">Create custom input</button>
+          </div>
+        </div>
         <div id="atvuInputRows"></div>
+        <div class="atvu-callout" style="margin-top:10px">Presets only prefill editable values. HDMI uses standard Android key commands. Android has no portable direct USB command, so the USB preset opens the source selector; replace its key code if your TV provides a dedicated one.</div>
         <div class="atvu-toolbar" style="margin-top:12px">
           <button id="atvuSaveDevice" class="atvu-button atvu-button-primary" type="button">Save device</button>
           <button id="atvuSaveAndPair" class="atvu-button" type="button">Save & pair</button>
@@ -485,6 +497,29 @@
       volume: 'atvuControlVolume', mute: 'atvuControlMute', inputs: 'atvuControlInputs',
       wakeOnLan: 'atvuControlWakeOnLan',
     }
+    const inputPresets = [
+      { id: 'youtube', group: 'Streaming apps', label: 'YouTube', input: { name: 'YouTube', type: 'application', uri: 'com.google.android.youtube.tv' } },
+      { id: 'netflix', group: 'Streaming apps', label: 'Netflix', input: { name: 'Netflix', type: 'application', uri: 'com.netflix.ninja' } },
+      { id: 'prime-video', group: 'Streaming apps', label: 'Prime Video', input: { name: 'Prime Video', type: 'application', uri: 'com.amazon.amazonvideo.livingroom' } },
+      { id: 'disney-plus', group: 'Streaming apps', label: 'Disney+', input: { name: 'Disney+', type: 'application', uri: 'com.disney.disneyplus' } },
+      { id: 'apple-tv', group: 'Streaming apps', label: 'Apple TV', input: { name: 'Apple TV', type: 'application', uri: 'com.apple.atve.androidtv.appletv' } },
+      { id: 'plex', group: 'Streaming apps', label: 'Plex', input: { name: 'Plex', type: 'application', uri: 'com.plexapp.android' } },
+      { id: 'spotify', group: 'Streaming apps', label: 'Spotify', input: { name: 'Spotify', type: 'application', uri: 'com.spotify.tv.android' } },
+      { id: 'kodi', group: 'Media players', label: 'Kodi', input: { name: 'Kodi', type: 'application', uri: 'org.xbmc.kodi' } },
+      { id: 'vlc', group: 'Media players', label: 'VLC', input: { name: 'VLC', type: 'application', uri: 'org.videolan.vlc' } },
+      { id: 'home', group: 'TV and hardware sources', label: 'Home screen', input: { name: 'Home', type: 'home', keyCode: 3 } },
+      { id: 'live-tv', group: 'TV and hardware sources', label: 'Live TV / tuner', input: { name: 'Live TV', type: 'tuner', keyCode: 170 } },
+      { id: 'input-selector', group: 'TV and hardware sources', label: 'TV input selector', input: { name: 'Inputs', type: 'other', keyCode: 178 } },
+      { id: 'hdmi-1', group: 'TV and hardware sources', label: 'HDMI 1', input: { name: 'HDMI 1', type: 'hdmi', keyCode: 243 } },
+      { id: 'hdmi-2', group: 'TV and hardware sources', label: 'HDMI 2', input: { name: 'HDMI 2', type: 'hdmi', keyCode: 244 } },
+      { id: 'hdmi-3', group: 'TV and hardware sources', label: 'HDMI 3', input: { name: 'HDMI 3', type: 'hdmi', keyCode: 245 } },
+      { id: 'hdmi-4', group: 'TV and hardware sources', label: 'HDMI 4', input: { name: 'HDMI 4', type: 'hdmi', keyCode: 246 } },
+      { id: 'composite-1', group: 'TV and hardware sources', label: 'Composite 1', input: { name: 'Composite 1', type: 'composite', keyCode: 247 } },
+      { id: 'composite-2', group: 'TV and hardware sources', label: 'Composite 2', input: { name: 'Composite 2', type: 'composite', keyCode: 248 } },
+      { id: 'component-1', group: 'TV and hardware sources', label: 'Component 1', input: { name: 'Component 1', type: 'component', keyCode: 249 } },
+      { id: 'component-2', group: 'TV and hardware sources', label: 'Component 2', input: { name: 'Component 2', type: 'component', keyCode: 250 } },
+      { id: 'usb-selector', group: 'TV and hardware sources', label: 'USB (opens source selector)', input: { name: 'USB', type: 'usb', keyCode: 178 } },
+    ]
 
     function profileControlDefaults(profile = 'television') {
       const defaults = { power: true, remote: true, media: true, volume: true, mute: true, inputs: true, wakeOnLan: true }
@@ -813,6 +848,32 @@
       return field
     }
 
+    function renderInputPresetOptions() {
+      const select = byId('atvuInputPreset')
+      select.replaceChildren()
+      const placeholder = element('option', '', 'Choose an input preset…'); placeholder.value = ''; select.append(placeholder)
+      const groups = new Map()
+      inputPresets.forEach(preset => {
+        if (!groups.has(preset.group)) {
+          const group = element('optgroup'); group.label = preset.group; groups.set(preset.group, group); select.append(group)
+        }
+        const option = element('option', '', preset.label); option.value = preset.id; groups.get(preset.group).append(option)
+      })
+      byId('atvuAddInputPreset').disabled = true
+    }
+
+    function addSelectedInputPreset() {
+      const select = byId('atvuInputPreset')
+      const preset = inputPresets.find(item => item.id === select.value)
+      if (!preset) return
+      const duplicate = editorInputs.some(input => (preset.input.uri && input.uri === preset.input.uri)
+        || (preset.input.keyCode !== undefined && input.keyCode === preset.input.keyCode && input.type === preset.input.type))
+      if (duplicate) return homebridge.toast.error(`${preset.label} is already configured. You can edit its existing row.`, 'Input already added')
+      editorInputs.push({ ...preset.input })
+      select.value = ''; byId('atvuAddInputPreset').disabled = true
+      renderInputRows()
+    }
+
     function openEditor(device = null) {
       const base = device ? toConfig(device) : {
         id: `manual-${Date.now().toString(36)}`,
@@ -838,7 +899,7 @@
 
     function renderInputRows() {
       const container = byId('atvuInputRows'); container.replaceChildren()
-      if (!editorInputs.length) container.append(element('div', 'atvu-empty', 'No inputs configured. Add an app package, deep link, HDMI input, tuner, USB source, or device-specific key command.'))
+      if (!editorInputs.length) container.append(element('div', 'atvu-empty', 'No inputs configured. Choose a ready-made preset above or create a custom input.'))
       const usedIdentifiers = new Set()
       editorInputs.forEach((input, index) => {
         let inputIdentifier = input.identifier || index + 1
@@ -1089,7 +1150,9 @@
     byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null; editorControls = null })
     byId('atvuApplyControlDefaults').addEventListener('click', applyProfileControlDefaults)
     byId('atvuEditType').addEventListener('change', applyProfileControlDefaults)
-    byId('atvuAddInput').addEventListener('click', () => { editorInputs.push({ name: '', uri: '', type: 'application' }); renderInputRows() })
+    byId('atvuInputPreset').addEventListener('change', event => { byId('atvuAddInputPreset').disabled = !event.target.value })
+    byId('atvuAddInputPreset').addEventListener('click', addSelectedInputPreset)
+    byId('atvuAddInput').addEventListener('click', () => { editorInputs.push({ name: '', type: 'application' }); renderInputRows() })
     byId('atvuSaveDevice').addEventListener('click', () => saveEditedDevice(false)); byId('atvuSaveAndPair').addEventListener('click', () => saveEditedDevice(true))
     byId('atvuLoadDiagnostics').addEventListener('click', generateDiagnostics)
     byId('atvuCopyDiagnostics').addEventListener('click', async () => { await copyText(lastDiagnostics); homebridge.toast.success('Diagnostics copied to clipboard.', 'Support bundle') })
@@ -1100,6 +1163,7 @@
     const savedTheme = localStorage.getItem('atvu-theme') || 'auto'
     byId('atvuTheme').value = ['auto', 'light', 'dark'].includes(savedTheme) ? savedTheme : 'auto'
     byId('atvuApp').dataset.theme = byId('atvuTheme').value
+    renderInputPresetOptions()
 
     Promise.all([homebridge.getPluginConfig(), homebridge.request('/about')]).then(async ([config, details]) => {
       platform = config[0] || platform; platform.devices ||= []; aboutInfo = details || {}

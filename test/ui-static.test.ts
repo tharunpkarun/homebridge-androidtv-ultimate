@@ -31,6 +31,12 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /Android key-code mapping/);
   assert.match(html, /Apple Home input type/);
   assert.match(html, /Android key code/);
+  assert.match(html, /id="atvuInputPreset"/);
+  assert.match(html, /id="atvuAddInputPreset"/);
+  assert.match(html, /Create custom input/);
+  for (const preset of ['YouTube', 'Netflix', 'Prime Video', 'Disney+', 'HDMI 1', 'USB (opens source selector)']) {
+    assert.ok(html.includes(`label: '${preset}'`));
+  }
   for (const profile of ['Streaming Stick', 'Apple TV', 'Audio Receiver', 'Speaker', 'HomePod']) {
     assert.match(html, new RegExp(`>${profile}<`));
   }
