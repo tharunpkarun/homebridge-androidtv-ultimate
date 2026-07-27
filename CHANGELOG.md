@@ -7,6 +7,7 @@ All notable changes are documented here.
 - Mark the Television service as primary so bridged TVs no longer use the generic house glyph in Apple Home.
 - Apply the configured Television or Set-top Box HAP category and add an opt-in standalone exposure mode for exact profile glyphs.
 - Preserve bridged exposure by default and document the Apple Home re-pairing implications when switching an existing TV to standalone.
+- Add per-device Streaming Stick, Apple TV, Audio Receiver, Speaker, and HomePod presentation profiles.
 
 ## 0.3.4 - 2026-07-27
 

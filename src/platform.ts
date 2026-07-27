@@ -95,6 +95,11 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
       const presentation = homeKitPresentation(device, {
         TELEVISION: this.api.hap.Categories.TELEVISION,
         TV_SET_TOP_BOX: this.api.hap.Categories.TV_SET_TOP_BOX,
+        TV_STREAMING_STICK: this.api.hap.Categories.TV_STREAMING_STICK,
+        APPLE_TV: this.api.hap.Categories.APPLE_TV,
+        AUDIO_RECEIVER: this.api.hap.Categories.AUDIO_RECEIVER,
+        SPEAKER: this.api.hap.Categories.SPEAKER,
+        HOMEPOD: this.api.hap.Categories.HOMEPOD,
       });
       let accessory = this.cachedAccessories.get(uuid);
       if (presentation.standalone && accessory) {

@@ -24,6 +24,9 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /Clear detected package/);
   assert.match(html, /id="atvuEditExposure"/);
   assert.match(html, /Standalone accessory \(exact profile glyph\)/);
+  for (const profile of ['Streaming Stick', 'Apple TV', 'Audio Receiver', 'Speaker', 'HomePod']) {
+    assert.match(html, new RegExp(`>${profile}<`));
+  }
   assert.match(html, /if \(discovered && !online\)/);
   assert.match(html, /setInterval\(\(\) => \{ if \(!document\.hidden\) void refresh\(false\) \}, 5000\)/);
   assert.match(html, /visibilitychange/);

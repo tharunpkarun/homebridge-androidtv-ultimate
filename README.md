@@ -288,7 +288,7 @@ The dashboard creates and maintains device identities automatically. The main op
 | `pairingPort` | `6467` | Remote Service v2 pairing port |
 | `mac` | — | Optional network MAC for identity matching and Wake-on-LAN |
 | `broadcastAddress` | `255.255.255.255` | Wake-on-LAN broadcast destination |
-| `deviceType` | `television` | Apple Home profile: `television` or `settopbox` |
+| `deviceType` | `television` | Apple Home profile: Television, Set-top Box, Streaming Stick, Apple TV, Audio Receiver, Speaker, or HomePod |
 | `exposureMode` | `bridged` | `bridged` keeps the TV on the Homebridge bridge; `standalone` advertises the exact profile category |
 | `inputs[].packageName` | — | Optional foreground Android package used for TV-confirmed active-input feedback |
 
@@ -330,7 +330,7 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 
 The Television service is marked as the primary HomeKit service in both exposure modes, so bridged TVs use a television-style tile instead of the generic house glyph.
 
-Apple's HAP protocol advertises the `TELEVISION` and `TV_SET_TOP_BOX` categories only for independently published accessories. Choose **Standalone accessory** when the exact Television or Set-top Box glyph matters. After restarting Homebridge, add that TV to Apple Home separately with the Homebridge setup code.
+Apple's HAP protocol advertises accessory categories only for independently published accessories. Choose **Standalone accessory** when the exact Television, Set-top Box, Streaming Stick, Apple TV, Audio Receiver, Speaker, or HomePod glyph matters. After restarting Homebridge, add that device to Apple Home separately with the Homebridge setup code. The profile changes presentation only; Remote Service v2 and the Android TV controls remain the same.
 
 Changing an existing TV from bridged to standalone removes its old bridged tile. Apple Home treats the standalone TV as a new accessory, so its room, scenes, and automations may need to be assigned again. The Android TV pairing credentials remain safely stored in Homebridge and do not need to be recreated.
 

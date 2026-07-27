@@ -27,7 +27,7 @@ export interface AndroidTvDeviceConfig {
   manufacturer?: string;
   mac?: string;
   broadcastAddress?: string;
-  deviceType?: 'television' | 'settopbox';
+  deviceType?: 'television' | 'settopbox' | 'streamingstick' | 'appletv' | 'audioreceiver' | 'speaker' | 'homepod';
   exposureMode?: 'bridged' | 'standalone';
   inputs?: AppInputConfig[];
 }

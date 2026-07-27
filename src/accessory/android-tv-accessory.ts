@@ -10,7 +10,7 @@ import { AndroidKeyCode } from '../protocol/remote-messages';
 import { RemoteServiceV2Transport } from '../protocol/v2-transport';
 import type { AndroidTvTransport } from '../protocol/transport';
 import { wakeOnLan } from '../network/wol';
-import { applyHomeKitPresentation, homeKitPresentation } from '../homekit/presentation';
+import { applyHomeKitPresentation, homeKitPresentation, homeKitProfileLabel } from '../homekit/presentation';
 import {
   ActiveInputLearner,
   applyLearnedMappings,
@@ -46,7 +46,7 @@ export class AndroidTvAccessory {
     const { Service, Characteristic } = platform;
     accessory.getService(Service.AccessoryInformation)!
       .setCharacteristic(Characteristic.Manufacturer, device.manufacturer ?? 'Android TV')
-      .setCharacteristic(Characteristic.Model, device.model ?? (device.deviceType === 'settopbox' ? 'Android TV Set-top Box' : 'Android TV'))
+      .setCharacteristic(Characteristic.Model, device.model ?? `Android TV ${homeKitProfileLabel(device.deviceType)}`)
       .setCharacteristic(Characteristic.SerialNumber, device.id)
       .setCharacteristic(Characteristic.FirmwareRevision, 'Remote Service v2');
 
@@ -55,6 +55,11 @@ export class AndroidTvAccessory {
     applyHomeKitPresentation(accessory, this.television, homeKitPresentation(device, {
       TELEVISION: platform.api.hap.Categories.TELEVISION,
       TV_SET_TOP_BOX: platform.api.hap.Categories.TV_SET_TOP_BOX,
+      TV_STREAMING_STICK: platform.api.hap.Categories.TV_STREAMING_STICK,
+      APPLE_TV: platform.api.hap.Categories.APPLE_TV,
+      AUDIO_RECEIVER: platform.api.hap.Categories.AUDIO_RECEIVER,
+      SPEAKER: platform.api.hap.Categories.SPEAKER,
+      HOMEPOD: platform.api.hap.Categories.HOMEPOD,
     }));
     this.television
       .setCharacteristic(Characteristic.ConfiguredName, device.name)

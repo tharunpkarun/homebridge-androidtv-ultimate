@@ -109,7 +109,12 @@
               "default": "television",
               "oneOf": [
                 { "title": "Television", "enum": ["television"] },
-                { "title": "Set-top Box", "enum": ["settopbox"] }
+                { "title": "Set-top Box", "enum": ["settopbox"] },
+                { "title": "Streaming Stick", "enum": ["streamingstick"] },
+                { "title": "Apple TV", "enum": ["appletv"] },
+                { "title": "Audio Receiver", "enum": ["audioreceiver"] },
+                { "title": "Speaker", "enum": ["speaker"] },
+                { "title": "HomePod", "enum": ["homepod"] }
               ]
             },
             "exposureMode": {
