@@ -484,6 +484,7 @@
       const merged = mergedDevice(configured || toConfig(device), discovered)
       const pairing = configured ? pairedMap().get(configured.id) : undefined
       const status = configured ? statusMap().get(configured.id) : undefined
+      const online = status?.connection === 'online'
       const card = element('article', 'atvu-device-card')
       const head = element('div', 'atvu-device-head')
       const icon = element('div', 'atvu-tv-icon'); icon.innerHTML = tvIcon
@@ -493,10 +494,12 @@
       head.append(icon, title); card.append(head)
 
       const badges = element('div', 'atvu-badges')
-      if (discovered) badges.append(badge(isRecentlySeen(discovered) ? 'Seen recently' : 'Cached / offline', isRecentlySeen(discovered) ? 'success' : 'warning'))
+      // A live Remote Service connection is more authoritative than mDNS cache age.
+      // Only use discovery freshness when there is no live runtime status yet.
+      if (discovered && !online) badges.append(badge(isRecentlySeen(discovered) ? 'Seen recently' : 'Cached / offline', isRecentlySeen(discovered) ? 'success' : 'warning'))
       if (configured) badges.append(badge('Configured', 'primary'))
       badges.append(badge(pairing ? 'Paired' : 'Not paired', pairing ? 'success' : 'warning'))
-      if (status) badges.append(badge(status.connection === 'online' ? (status.power ? 'On' : 'Standby') : 'Offline', status.connection === 'online' ? 'success' : ''))
+      if (status) badges.append(badge(online ? (status.power ? 'On' : 'Standby') : 'Offline', online ? 'success' : ''))
       card.append(badges)
 
       const facts = element('div', 'atvu-facts')
@@ -962,7 +965,8 @@
     Promise.all([homebridge.getPluginConfig(), homebridge.request('/about')]).then(async ([config, details]) => {
       platform = config[0] || platform; platform.devices ||= []; aboutInfo = details || {}
       loadGeneralSettings(); renderPackageDetails(); await refresh()
-      setInterval(() => { if (!document.hidden) void refresh(false) }, 15000)
+      setInterval(() => { if (!document.hidden) void refresh(false) }, 5000)
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(false) })
     }).catch(error => homebridge.toast.error(errorMessage(error), 'Could not load AndroidTV Ultimate settings'))
   })()
 </script>

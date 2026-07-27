@@ -22,6 +22,9 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /id="atvuImportBackup"/);
   assert.match(html, /Android package \(optional\)/);
   assert.match(html, /Clear detected package/);
+  assert.match(html, /if \(discovered && !online\)/);
+  assert.match(html, /setInterval\(\(\) => \{ if \(!document\.hidden\) void refresh\(false\) \}, 5000\)/);
+  assert.match(html, /visibilitychange/);
   assert.doesNotMatch(html, /window\.prompt/);
 });
 
