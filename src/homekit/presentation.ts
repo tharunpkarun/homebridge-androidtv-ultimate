@@ -50,9 +50,9 @@ export function homeKitProfileLabel(deviceType?: AndroidTvDeviceConfig['deviceTy
 
 export function applyHomeKitPresentation(
   accessory: Pick<PlatformAccessory, 'category'>,
-  television: Pick<Service, 'setPrimaryService'>,
+  primaryService: Pick<Service, 'setPrimaryService'>,
   presentation: HomeKitPresentation,
 ): void {
   accessory.category = presentation.category as PlatformAccessory['category'];
-  television.setPrimaryService();
+  primaryService.setPrimaryService();
 }

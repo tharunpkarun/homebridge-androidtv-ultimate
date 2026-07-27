@@ -11,6 +11,8 @@ import { RemoteServiceV2Transport } from '../protocol/v2-transport';
 import type { AndroidTvTransport } from '../protocol/transport';
 import { wakeOnLan } from '../network/wol';
 import { applyHomeKitPresentation, homeKitPresentation, homeKitProfileLabel } from '../homekit/presentation';
+import { inputSourceType, resolveControlOptions, type ResolvedControlOptions } from '../homekit/controls';
+import type { AndroidRemoteKeyName } from '../types';
 import {
   ActiveInputLearner,
   applyLearnedMappings,
@@ -24,15 +26,20 @@ import {
 
 interface InputBinding extends InputPackageBinding {
   service: Service;
+  type?: NonNullable<AndroidTvDeviceConfig['inputs']>[number]['type'];
 }
 
 export class AndroidTvAccessory {
   private readonly log: Logger;
   private readonly television: Service;
   private readonly speaker: Service;
+  private readonly smartSpeaker?: Service;
+  private readonly audioService: Service;
+  private readonly controls: ResolvedControlOptions;
   private readonly inputs: InputBinding[] = [];
   private readonly transport?: AndroidTvTransport;
   private readonly inputLearner: ActiveInputLearner;
+  private smartMediaState = 2;
 
   constructor(
     private readonly platform: AndroidTvPlatform,
@@ -42,6 +49,7 @@ export class AndroidTvAccessory {
     learnedMappings: LearnedInputMapping[] = [],
   ) {
     this.log = platform.log;
+    this.controls = resolveControlOptions(device);
     this.inputLearner = new ActiveInputLearner((identifier, packageName) => this.completeLearning(identifier, packageName));
     const { Service, Characteristic } = platform;
     accessory.getService(Service.AccessoryInformation)!
@@ -52,7 +60,36 @@ export class AndroidTvAccessory {
 
     this.television = accessory.getService(Service.Television)
       ?? accessory.addService(Service.Television, device.name, 'television');
-    applyHomeKitPresentation(accessory, this.television, homeKitPresentation(device, {
+    this.television
+      .setCharacteristic(Characteristic.ConfiguredName, device.name)
+      .setCharacteristic(Characteristic.SleepDiscoveryMode, Characteristic.SleepDiscoveryMode.ALWAYS_DISCOVERABLE);
+
+    this.speaker = accessory.getService(Service.TelevisionSpeaker)
+      ?? accessory.addService(Service.TelevisionSpeaker, `${device.name} Speaker`, 'speaker');
+    this.television.addLinkedService(this.speaker);
+
+    if ((device.deviceType ?? 'television') === 'homepod') {
+      this.smartSpeaker = accessory.getService(Service.SmartSpeaker)
+        ?? accessory.addService(Service.SmartSpeaker, device.name, 'smart-speaker');
+      this.smartSpeaker.setCharacteristic(Characteristic.ConfiguredName, device.name);
+    } else {
+      const staleSmartSpeaker = accessory.getService(Service.SmartSpeaker);
+      if (staleSmartSpeaker) {
+        accessory.removeService(staleSmartSpeaker);
+      }
+    }
+    this.audioService = this.smartSpeaker ?? this.speaker;
+
+    const profile = device.deviceType ?? 'television';
+    const primaryService = profile === 'homepod' ? this.smartSpeaker! : profile === 'speaker' ? this.speaker : this.television;
+    const televisionControlsEnabled = profile === 'speaker'
+      ? this.controls.remote || this.controls.media || this.controls.inputs
+      : profile === 'homepod'
+        ? this.controls.power || this.controls.remote || this.controls.inputs
+        : true;
+    this.television.setHiddenService(!televisionControlsEnabled);
+    this.speaker.setHiddenService(profile === 'homepod' || (profile !== 'speaker' && !this.controls.volume && !this.controls.mute));
+    applyHomeKitPresentation(accessory, primaryService, homeKitPresentation(device, {
       TELEVISION: platform.api.hap.Categories.TELEVISION,
       TV_SET_TOP_BOX: platform.api.hap.Categories.TV_SET_TOP_BOX,
       TV_STREAMING_STICK: platform.api.hap.Categories.TV_STREAMING_STICK,
@@ -61,16 +98,6 @@ export class AndroidTvAccessory {
       SPEAKER: platform.api.hap.Categories.SPEAKER,
       HOMEPOD: platform.api.hap.Categories.HOMEPOD,
     }));
-    this.television
-      .setCharacteristic(Characteristic.ConfiguredName, device.name)
-      .setCharacteristic(Characteristic.SleepDiscoveryMode, Characteristic.SleepDiscoveryMode.ALWAYS_DISCOVERABLE);
-
-    this.speaker = accessory.getService(Service.TelevisionSpeaker)
-      ?? accessory.addService(Service.TelevisionSpeaker, `${device.name} Speaker`, 'speaker');
-    this.speaker
-      .setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE)
-      .setCharacteristic(Characteristic.VolumeControlType, Characteristic.VolumeControlType.ABSOLUTE);
-    this.television.addLinkedService(this.speaker);
 
     this.configureInputs(learnedMappings);
     this.configureCharacteristics();
@@ -107,8 +134,14 @@ export class AndroidTvAccessory {
 
   private configureInputs(learnedMappings: LearnedInputMapping[]): void {
     const { Service, Characteristic } = this.platform;
-    const configuredInputs = this.device.inputs ?? [];
+    const configuredInputs = this.controls.inputs ? this.device.inputs ?? [] : [];
     const identifiers = assignInputIdentifiers(configuredInputs);
+    const desiredSubtypes = new Set(identifiers.map(identifier => `input-${identifier}`));
+    for (const service of [...this.accessory.services]) {
+      if (service.UUID === Service.InputSource.UUID && (!service.subtype || !desiredSubtypes.has(service.subtype))) {
+        this.accessory.removeService(service);
+      }
+    }
     const duplicatePackages = duplicateExplicitPackages(configuredInputs);
     if (duplicatePackages.length > 0) {
       this.log.error(
@@ -125,7 +158,7 @@ export class AndroidTvAccessory {
         .setCharacteristic(Characteristic.Identifier, identifier)
         .setCharacteristic(Characteristic.ConfiguredName, input.name)
         .setCharacteristic(Characteristic.IsConfigured, Characteristic.IsConfigured.CONFIGURED)
-        .setCharacteristic(Characteristic.InputSourceType, Characteristic.InputSourceType.APPLICATION)
+        .setCharacteristic(Characteristic.InputSourceType, inputSourceType(input.type))
         .setCharacteristic(Characteristic.CurrentVisibilityState, Characteristic.CurrentVisibilityState.SHOWN)
         .setCharacteristic(Characteristic.TargetVisibilityState, Characteristic.TargetVisibilityState.SHOWN);
       this.television.addLinkedService(service);
@@ -134,6 +167,8 @@ export class AndroidTvAccessory {
         identifier,
         name: input.name,
         uri: input.uri,
+        keyCode: input.keyCode,
+        type: input.type,
         packageName: packageName && !duplicatePackages.includes(packageName) ? packageName : undefined,
         service,
       });
@@ -145,11 +180,26 @@ export class AndroidTvAccessory {
     const { Characteristic } = this.platform;
     this.television.getCharacteristic(Characteristic.Active)
       .onGet(() => this.transport?.snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE)
-      .onSet(async value => this.setActive(value === Characteristic.Active.ACTIVE));
+      .onSet(async value => {
+        this.requireControl('power', 'Power');
+        await this.setActive(value === Characteristic.Active.ACTIVE);
+      });
+
+    const profile = this.device.deviceType ?? 'television';
+    if (profile === 'speaker' && this.controls.power) {
+      this.speaker.getCharacteristic(Characteristic.Active)
+        .onGet(() => this.transport?.snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE)
+        .onSet(async value => this.setActive(value === Characteristic.Active.ACTIVE));
+    } else if (profile !== 'homepod' && (this.controls.volume || this.controls.mute)) {
+      this.speaker.setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
+    } else if (this.speaker.testCharacteristic(Characteristic.Active)) {
+      this.speaker.removeCharacteristic(this.speaker.getCharacteristic(Characteristic.Active));
+    }
 
     this.television.getCharacteristic(Characteristic.ActiveIdentifier)
       .onGet(() => this.currentIdentifier())
       .onSet(async value => {
+        this.requireControl('inputs', 'Input');
         const input = this.inputs.find(item => item.identifier === Number(value));
         if (input) {
           if (inputNeedsLearning(input)) {
@@ -158,7 +208,13 @@ export class AndroidTvAccessory {
             this.inputLearner.cancel();
           }
           try {
-            await this.requireTransport().launchApp(input.uri);
+            if (input.keyCode !== undefined) {
+              await this.requireTransport().sendKey(input.keyCode as AndroidKeyCode);
+            } else if (input.uri) {
+              await this.requireTransport().launchApp(input.uri);
+            } else {
+              throw new Error(`${input.name} has no Android URI, package, or key code`);
+            }
           } catch (error) {
             this.inputLearner.cancel();
             throw error;
@@ -169,21 +225,54 @@ export class AndroidTvAccessory {
     this.television.getCharacteristic(Characteristic.RemoteKey)
       .onSet(async value => this.sendRemoteKey(Number(value)));
     this.television.getCharacteristic(Characteristic.PowerModeSelection)
-      .onSet(async () => this.requireTransport().sendKey(AndroidKeyCode.MENU));
-
-    this.speaker.getCharacteristic(Characteristic.Mute)
-      .onGet(() => this.transport?.snapshot.muted ?? false)
-      .onSet(async value => this.requireTransport().setMuted(Boolean(value)));
-    this.speaker.getCharacteristic(Characteristic.Volume)
-      .onGet(() => this.transport?.snapshot.volume ?? 0)
-      .onSet(async value => this.requireTransport().setVolume(Number(value)));
-    this.speaker.getCharacteristic(Characteristic.VolumeSelector)
-      .onSet(async value => {
-        const key = value === Characteristic.VolumeSelector.INCREMENT
-          ? AndroidKeyCode.VOLUME_UP
-          : AndroidKeyCode.VOLUME_DOWN;
-        await this.requireTransport().sendKey(key);
+      .onSet(async () => {
+        this.requireControl('remote', 'Remote');
+        await this.sendConfiguredKey('menu');
       });
+
+    if (this.controls.mute || this.audioService === this.speaker) {
+      this.audioService.getCharacteristic(Characteristic.Mute)
+        .onGet(() => this.transport?.snapshot.muted ?? false)
+        .onSet(async value => {
+          this.requireControl('mute', 'Mute');
+          await this.requireTransport().setMuted(Boolean(value));
+        });
+    } else if (this.audioService.testCharacteristic(Characteristic.Mute)) {
+      this.audioService.removeCharacteristic(this.audioService.getCharacteristic(Characteristic.Mute));
+    }
+
+    if (this.controls.volume) {
+      this.audioService.getCharacteristic(Characteristic.Volume)
+        .onGet(() => this.transport?.snapshot.volume ?? 0)
+        .onSet(async value => this.requireTransport().setVolume(Number(value)));
+      if (this.audioService === this.speaker) {
+        this.speaker.setCharacteristic(Characteristic.VolumeControlType, Characteristic.VolumeControlType.ABSOLUTE);
+        this.speaker.getCharacteristic(Characteristic.VolumeSelector)
+          .onSet(async value => {
+            await this.sendConfiguredKey(value === Characteristic.VolumeSelector.INCREMENT ? 'volumeUp' : 'volumeDown');
+          });
+      }
+    } else {
+      if (this.audioService.testCharacteristic(Characteristic.Volume)) {
+        this.audioService.removeCharacteristic(this.audioService.getCharacteristic(Characteristic.Volume));
+      }
+      if (this.audioService !== this.speaker && this.speaker.testCharacteristic(Characteristic.Volume)) {
+        this.speaker.removeCharacteristic(this.speaker.getCharacteristic(Characteristic.Volume));
+      }
+      for (const characteristic of [Characteristic.VolumeControlType, Characteristic.VolumeSelector]) {
+        if (this.speaker.testCharacteristic(characteristic)) {
+          this.speaker.removeCharacteristic(this.speaker.getCharacteristic(characteristic));
+        }
+      }
+    }
+
+    if (this.smartSpeaker) {
+      this.smartSpeaker.getCharacteristic(Characteristic.CurrentMediaState)
+        .onGet(() => this.smartMediaState);
+      this.smartSpeaker.getCharacteristic(Characteristic.TargetMediaState)
+        .onGet(() => this.smartMediaState)
+        .onSet(async value => this.setSmartMediaState(Number(value)));
+    }
   }
 
   private async setActive(active: boolean): Promise<void> {
@@ -191,6 +280,9 @@ export class AndroidTvAccessory {
       throw new Error(`${this.device.name} is not paired`);
     }
     if (active && this.transport.snapshot.connection !== 'online') {
+      if (!this.controls.wakeOnLan) {
+        throw new Error(`${this.device.name} is offline and Wake-on-LAN is disabled`);
+      }
       if (!this.device.mac) {
         throw new Error(`${this.device.name} is offline and has no Wake-on-LAN MAC address`);
       }
@@ -202,25 +294,43 @@ export class AndroidTvAccessory {
 
   private async sendRemoteKey(value: number): Promise<void> {
     const { Characteristic } = this.platform;
-    const mapping = new Map<number, AndroidKeyCode>([
-      [Characteristic.RemoteKey.REWIND, AndroidKeyCode.DPAD_LEFT],
-      [Characteristic.RemoteKey.FAST_FORWARD, AndroidKeyCode.DPAD_RIGHT],
-      [Characteristic.RemoteKey.NEXT_TRACK, AndroidKeyCode.DPAD_RIGHT],
-      [Characteristic.RemoteKey.PREVIOUS_TRACK, AndroidKeyCode.DPAD_LEFT],
-      [Characteristic.RemoteKey.ARROW_UP, AndroidKeyCode.DPAD_UP],
-      [Characteristic.RemoteKey.ARROW_DOWN, AndroidKeyCode.DPAD_DOWN],
-      [Characteristic.RemoteKey.ARROW_LEFT, AndroidKeyCode.DPAD_LEFT],
-      [Characteristic.RemoteKey.ARROW_RIGHT, AndroidKeyCode.DPAD_RIGHT],
-      [Characteristic.RemoteKey.SELECT, AndroidKeyCode.DPAD_CENTER],
-      [Characteristic.RemoteKey.BACK, AndroidKeyCode.BACK],
-      [Characteristic.RemoteKey.EXIT, AndroidKeyCode.HOME],
-      [Characteristic.RemoteKey.PLAY_PAUSE, AndroidKeyCode.MEDIA_PLAY_PAUSE],
-      [Characteristic.RemoteKey.INFORMATION, AndroidKeyCode.INFO],
+    const mapping = new Map<number, { key: AndroidRemoteKeyName; control: 'remote' | 'media' }>([
+      [Characteristic.RemoteKey.REWIND, { key: 'rewind', control: 'media' }],
+      [Characteristic.RemoteKey.FAST_FORWARD, { key: 'fastForward', control: 'media' }],
+      [Characteristic.RemoteKey.NEXT_TRACK, { key: 'next', control: 'media' }],
+      [Characteristic.RemoteKey.PREVIOUS_TRACK, { key: 'previous', control: 'media' }],
+      [Characteristic.RemoteKey.ARROW_UP, { key: 'up', control: 'remote' }],
+      [Characteristic.RemoteKey.ARROW_DOWN, { key: 'down', control: 'remote' }],
+      [Characteristic.RemoteKey.ARROW_LEFT, { key: 'left', control: 'remote' }],
+      [Characteristic.RemoteKey.ARROW_RIGHT, { key: 'right', control: 'remote' }],
+      [Characteristic.RemoteKey.SELECT, { key: 'select', control: 'remote' }],
+      [Characteristic.RemoteKey.BACK, { key: 'back', control: 'remote' }],
+      [Characteristic.RemoteKey.EXIT, { key: 'home', control: 'remote' }],
+      [Characteristic.RemoteKey.PLAY_PAUSE, { key: 'playPause', control: 'media' }],
+      [Characteristic.RemoteKey.INFORMATION, { key: 'info', control: 'remote' }],
     ]);
-    const key = mapping.get(value);
-    if (key !== undefined) {
-      await this.requireTransport().sendKey(key);
+    const command = mapping.get(value);
+    if (command) {
+      this.requireControl(command.control, command.control === 'media' ? 'Media' : 'Remote');
+      await this.sendConfiguredKey(command.key);
     }
+  }
+
+  private async setSmartMediaState(value: number): Promise<void> {
+    const { Characteristic } = this.platform;
+    this.requireControl('media', 'Media');
+    const key = value === Characteristic.TargetMediaState.PLAY
+      ? 'play'
+      : value === Characteristic.TargetMediaState.PAUSE
+        ? 'pause'
+        : 'stop';
+    await this.sendConfiguredKey(key);
+    this.smartMediaState = value;
+    this.smartSpeaker?.updateCharacteristic(Characteristic.CurrentMediaState, value);
+  }
+
+  private async sendConfiguredKey(key: AndroidRemoteKeyName): Promise<void> {
+    await this.requireTransport().sendKey(this.controls.keyMappings[key] as AndroidKeyCode);
   }
 
   private handleState(snapshot: Readonly<DeviceSnapshot>): void {
@@ -229,6 +339,21 @@ export class AndroidTvAccessory {
       Characteristic.Active,
       snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE,
     );
+    if ((this.device.deviceType ?? 'television') === 'speaker' && this.controls.power) {
+      this.speaker.updateCharacteristic(
+        Characteristic.Active,
+        snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE,
+      );
+    }
+    if (this.smartSpeaker) {
+      if (!snapshot.power) {
+        this.smartMediaState = Characteristic.CurrentMediaState.STOP;
+      } else if (this.smartMediaState === Characteristic.CurrentMediaState.STOP) {
+        this.smartMediaState = Characteristic.CurrentMediaState.PLAY;
+      }
+      this.smartSpeaker.updateCharacteristic(Characteristic.CurrentMediaState, this.smartMediaState);
+      this.smartSpeaker.updateCharacteristic(Characteristic.TargetMediaState, this.smartMediaState);
+    }
     const currentIdentifier = this.currentIdentifier(snapshot);
     this.television.updateCharacteristic(Characteristic.ActiveIdentifier, currentIdentifier);
     if (snapshot.connection !== 'online') {
@@ -236,11 +361,11 @@ export class AndroidTvAccessory {
     } else {
       this.inputLearner.observe(snapshot.currentApp, Number(currentIdentifier));
     }
-    if (snapshot.muted !== undefined) {
-      this.speaker.updateCharacteristic(Characteristic.Mute, snapshot.muted);
+    if (this.controls.mute && snapshot.muted !== undefined) {
+      this.audioService.updateCharacteristic(Characteristic.Mute, snapshot.muted);
     }
-    if (snapshot.volume !== undefined) {
-      this.speaker.updateCharacteristic(Characteristic.Volume, snapshot.volume);
+    if (this.controls.volume && snapshot.volume !== undefined) {
+      this.audioService.updateCharacteristic(Characteristic.Volume, snapshot.volume);
     }
     void this.platform.persistStatus(this.device, this.statusWithActiveInput(snapshot, Number(currentIdentifier)));
   }
@@ -287,5 +412,11 @@ export class AndroidTvAccessory {
       throw new Error(`${this.device.name} is not paired`);
     }
     return this.transport;
+  }
+
+  private requireControl(control: keyof Omit<ResolvedControlOptions, 'keyMappings'>, label: string): void {
+    if (!this.controls[control]) {
+      throw new Error(`${label} control is disabled for ${this.device.name}`);
+    }
   }
 }

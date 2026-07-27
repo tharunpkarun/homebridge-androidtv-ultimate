@@ -62,10 +62,11 @@ The paired device appears in Apple Home as a Television accessory. AndroidTV Ult
 | Android TV / Google TV mDNS discovery | ✅ | Uses `_androidtvremote2._tcp.local` |
 | Automatic DHCP/IP recovery | ✅ | Preserves HomeKit identity and pairing credentials |
 | Accurate online/offline power state | ✅ | Offline never defaults to `On` |
-| HomeKit Television and Speaker services | ✅ | Uses standard cached platform accessories |
-| Directional, Select, Home, Back, media, and Info keys | ✅ | Sent through the local remote connection |
+| Profile-aware HomeKit services | ✅ | Television, Speaker, or Smart Speaker becomes primary according to the selected profile |
+| Per-device control and key mapping | ✅ | Enable each control group and override Android key codes in the dashboard |
+| Directional, Select, Home, Back, media, and Info keys | ✅ | Uses Android KeyEvent defaults through the local remote connection |
 | Volume, mute, and absolute volume | 🟡 | Availability and feedback depend on firmware |
-| App URI Input Sources | 🟡 | Launches configured packages or deep links and reflects the TV-confirmed active app in Apple Home |
+| Configurable Input Sources | 🟡 | Apps, deep links, HDMI, tuner, USB, and custom key commands; active feedback requires an Android package report |
 | Wake-on-LAN | 🟡 | Requires a network MAC and hardware network-standby support |
 | Docker operation | ✅ | Host networking is recommended for multicast and broadcast traffic |
 | Cloud APIs, analytics, or telemetry | ➖ | Not used |
@@ -82,6 +83,8 @@ Depending on firmware support, AndroidTV Ultimate exposes:
 - Volume up/down, absolute volume, and mute
 - App URI launch through Television Input Sources
 - Live active-input feedback after the TV confirms its foreground Android package
+
+Each device has independent switches for Power, navigation remote, media, volume, mute, inputs, and Wake-on-LAN. The Android key code behind every navigation, media, and volume-step action can also be overridden without editing source code. Apple requires core characteristics on Television and Smart Speaker services, so a disabled command may remain visible in Apple Home but will not be sent to the device.
 
 Every device remains isolated: a disconnected TV cannot overwrite another TV's state.
 
@@ -155,8 +158,8 @@ The accessory changes to `On` only after mutual TLS connects successfully. Follo
 The custom plugin modal is organized into four responsive tabs:
 
 - **Dashboard** — setup progress, discovered/configured/paired/online totals, and device health.
-- **Devices** — explicit TV names, manufacturer/model, pairing and power state, endpoints, mDNS identity, hardware ID, first/last seen timestamps, Wake-on-LAN readiness, app inputs, and connection testing.
-- **Settings** — platform behavior, manual device editing, HomeKit profile, bridged/standalone Apple Home exposure, network details, Wake-on-LAN, and app-input management.
+- **Devices** — explicit device names, manufacturer/model, pairing and power state, endpoints, mDNS identity, hardware ID, first/last seen timestamps, Wake-on-LAN readiness, configured inputs, and connection testing.
+- **Settings** — platform behavior, manual device editing, HomeKit profile, bridged/standalone exposure, per-control switches, Android key mapping, network details, Wake-on-LAN, and rich input management.
 - **Tools & Support** — package/runtime details, GitHub bug reporting, privacy-safe diagnostics, encrypted backup/restore, and legacy migration.
 
 The dashboard supports automatic, light, and dark themes. Automatic mode follows the browser or operating-system color preference.
@@ -200,16 +203,30 @@ Select any screenshot to open the full-resolution view.
   </tr>
 </table>
 
-### App Input Sources
+### Configurable Input Sources
 
-Remote Service v2 can launch Android app links and report the foreground Android package. Configure Input Sources with a package or deep-link URI. When the TV reports a matching package, Apple Home selects that input automatically—even if the app was opened with the physical remote or another controller.
+An input has a display name, Apple Home type, stable identifier, and one command: either an Android package/URI/deep link or a numeric Android key code. Supported Apple Home types are Application, Home Screen, Tuner, HDMI, Composite Video, S-Video, Component Video, DVI, AirPlay, USB, and Other.
+
+Remote Service v2 can launch Android app links and report the foreground Android package. When the TV reports a matching package, Apple Home selects that input automatically—even if the app was opened with the physical remote or another controller.
 
 For a direct package launch, the URI can also act as the package mapping:
 
 ```json
 {
   "name": "YouTube",
+  "type": "application",
   "uri": "com.google.android.youtube.tv"
+}
+```
+
+For a firmware-specific HDMI command, use a numeric Android key code instead of a URI:
+
+```json
+{
+  "name": "Game Console",
+  "type": "hdmi",
+  "keyCode": 243,
+  "identifier": 3
 }
 ```
 
@@ -225,7 +242,7 @@ For a deep link, optionally provide its foreground Android package:
 
 If `packageName` is omitted for a deep link, AndroidTV Ultimate opens a 15-second learning window after launch. A package reported continuously for three seconds is stored privately as the mapping for that input. Explicit package settings always take precedence, and learned mappings can be inspected or cleared in the device editor.
 
-Apple Home changes the active input only after the television confirms the foreground app. Unknown apps, offline TVs, and new connections show no active configured input instead of retaining a stale selection. Physical HDMI input detection is not included because Remote Service v2 does not expose it reliably.
+Apple Home changes the active input only after the television confirms the foreground app. Unknown apps, offline TVs, and new connections show no active configured input instead of retaining a stale selection. A hardware input can be selected with a working key code, but its active state cannot be confirmed unless the firmware also reports a package that can be mapped to `packageName`.
 
 ### Wake-on-LAN
 
@@ -290,6 +307,11 @@ The dashboard creates and maintains device identities automatically. The main op
 | `broadcastAddress` | `255.255.255.255` | Wake-on-LAN broadcast destination |
 | `deviceType` | `television` | Apple Home profile: Television, Set-top Box, Streaming Stick, Apple TV, Audio Receiver, Speaker, or HomePod |
 | `exposureMode` | `bridged` | `bridged` keeps the TV on the Homebridge bridge; `standalone` advertises the exact profile category |
+| `controls.*` | Profile default | Enable Power, Remote, Media, Volume, Mute, Inputs, and Wake-on-LAN independently |
+| `controls.keyMappings.*` | Android default | Override the numeric Android key code for an individual remote, media, or volume-step command |
+| `inputs[].type` | `application` | Apple Home input type, including Application, HDMI, Tuner, USB, and the other HAP input types |
+| `inputs[].uri` | — | Android package, URI, or deep link to launch; optional when `keyCode` is set |
+| `inputs[].keyCode` | — | Numeric Android key command used instead of a URI |
 | `inputs[].packageName` | — | Optional foreground Android package used for TV-confirmed active-input feedback |
 
 Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by discovery and should normally not be edited manually.
@@ -313,9 +335,23 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
       "exposureMode": "bridged",
       "mac": "AA:BB:CC:DD:EE:FF",
       "broadcastAddress": "192.168.1.255",
+      "controls": {
+        "power": true,
+        "remote": true,
+        "media": true,
+        "volume": true,
+        "mute": true,
+        "inputs": true,
+        "wakeOnLan": true,
+        "keyMappings": {
+          "home": 3,
+          "playPause": 85
+        }
+      },
       "inputs": [
         {
           "name": "Streaming App",
+          "type": "application",
           "uri": "example-app://browse",
           "packageName": "com.example.streaming",
           "identifier": 1
@@ -328,9 +364,40 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
 
 ### Apple Home glyphs and exposure
 
-The Television service is marked as the primary HomeKit service in both exposure modes, so bridged TVs use a television-style tile instead of the generic house glyph.
+Television-like profiles use Television as the primary service. Speaker uses the standard Speaker service, while HomePod uses Smart Speaker with play, pause, stop, volume, and mute. This also gives bridged devices a profile-appropriate service instead of a generic accessory tile where Apple Home supports it.
 
-Apple's HAP protocol advertises accessory categories only for independently published accessories. Choose **Standalone accessory** when the exact Television, Set-top Box, Streaming Stick, Apple TV, Audio Receiver, Speaker, or HomePod glyph matters. After restarting Homebridge, add that device to Apple Home separately with the Homebridge setup code. The profile changes presentation only; Remote Service v2 and the Android TV controls remain the same.
+Remote Service v2 does not report playback state, so Smart Speaker play/pause/stop state follows the last command and resets to stopped when the device goes offline. Power, volume, mute, and foreground-app feedback continue to use device reports where available.
+
+Apple's HAP protocol advertises accessory categories only for independently published accessories. Choose **Standalone accessory** when the exact Television, Set-top Box, Streaming Stick, Apple TV, Audio Receiver, Speaker, or HomePod glyph matters. After restarting Homebridge, add that device to Apple Home separately with the Homebridge setup code. Every profile still uses the same local Remote Service v2 connection; only its HomeKit service and default controls differ.
+
+Profiles also provide sensible control defaults:
+
+| Profile | Primary service | Default controls |
+| --- | --- | --- |
+| Television, Set-top Box, Streaming Stick, Apple TV, Audio Receiver | Television | Power, navigation, media, volume, mute, inputs, Wake-on-LAN |
+| Speaker | Speaker | Power, volume, mute, Wake-on-LAN |
+| HomePod | Smart Speaker | Media, volume, mute |
+
+The dashboard can enable additional groups or disable any default. Enabling navigation, inputs, or other Television-only controls on a Speaker/HomePod profile exposes the secondary Television service required to carry those controls.
+
+### Android key-code defaults
+
+The defaults follow Android's `KeyEvent` constants. Override only commands that the target firmware maps differently.
+
+| Action | Key code |
+| --- | ---: |
+| Home / Back | `3` / `4` |
+| Up / Down | `19` / `20` |
+| Left / Right | `21` / `22` |
+| Select | `23` |
+| Volume Up / Down | `24` / `25` |
+| Menu | `82` |
+| Play / Pause (combined) | `85` |
+| Stop | `86` |
+| Next / Previous | `87` / `88` |
+| Rewind / Fast Forward | `89` / `90` |
+| Play / Pause (dedicated) | `126` / `127` |
+| Information | `165` |
 
 Changing an existing TV from bridged to standalone removes its old bridged tile. Apple Home treats the standalone TV as a new accessory, so its room, scenes, and automations may need to be assigned again. The Android TV pairing credentials remain safely stored in Homebridge and do not need to be recreated.
 

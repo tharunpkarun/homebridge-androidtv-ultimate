@@ -138,3 +138,69 @@ test('standalone mode removes a cached bridge tile before publishing the exact c
   assert.equal(calls.published[0]?.category, 35);
   assert.equal(calls.published[0]?.getService(Service.Television)?.isPrimaryService, true);
 });
+
+test('Speaker profile promotes the Speaker service and hides the Television service', async () => {
+  const { platform, calls } = await platformHarness({
+    platform: 'AndroidTVUltimate',
+    devices: [{ id: 'speaker', name: 'Speaker', host: '192.0.2.12', deviceType: 'speaker' }],
+  });
+
+  await synchronize(platform);
+
+  const accessory = calls.registered[0];
+  assert.equal(accessory?.category, 26);
+  assert.equal(accessory?.getService(Service.Speaker)?.isPrimaryService, true);
+  assert.equal(accessory?.getService(Service.Television)?.isHiddenService, true);
+});
+
+test('HomePod profile promotes SmartSpeaker and uses focused control services', async () => {
+  const { platform, calls } = await platformHarness({
+    platform: 'AndroidTVUltimate',
+    devices: [{ id: 'homepod', name: 'HomePod', host: '192.0.2.13', deviceType: 'homepod' }],
+  });
+
+  await synchronize(platform);
+
+  const accessory = calls.registered[0];
+  assert.equal(accessory?.category, 25);
+  assert.equal(accessory?.getService(Service.SmartSpeaker)?.isPrimaryService, true);
+  assert.equal(accessory?.getService(Service.Television)?.isHiddenService, true);
+  assert.equal(accessory?.getService(Service.TelevisionSpeaker)?.isHiddenService, true);
+});
+
+test('disabled optional audio controls are removed from the visible Television accessory', async () => {
+  const { platform, calls } = await platformHarness({
+    platform: 'AndroidTVUltimate',
+    devices: [{
+      id: 'quiet-tv',
+      name: 'Quiet TV',
+      host: '192.0.2.14',
+      controls: { volume: false, mute: false },
+    }],
+  });
+
+  await synchronize(platform);
+
+  const speaker = calls.registered[0]?.getService(Service.TelevisionSpeaker);
+  assert.equal(speaker?.isHiddenService, true);
+  assert.equal(speaker?.testCharacteristic(Characteristic.Volume), false);
+  assert.equal(speaker?.testCharacteristic(Characteristic.VolumeSelector), false);
+});
+
+test('rich input configuration applies HomeKit source types and supports key-only commands', async () => {
+  const { platform, calls } = await platformHarness({
+    platform: 'AndroidTVUltimate',
+    devices: [{
+      id: 'input-tv',
+      name: 'Input TV',
+      host: '192.0.2.15',
+      inputs: [{ name: 'Game Console', type: 'hdmi', keyCode: 243, identifier: 3 }],
+    }],
+  });
+
+  await synchronize(platform);
+
+  const input = calls.registered[0]?.getServiceById(Service.InputSource, 'input-3');
+  assert.equal(input?.getCharacteristic(Characteristic.InputSourceType).value, Characteristic.InputSourceType.HDMI);
+  assert.equal(input?.getCharacteristic(Characteristic.Identifier).value, 3);
+});

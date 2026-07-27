@@ -13,7 +13,7 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
     assert.match(html, new RegExp(`data-atvu-tab="${tab}"`));
     assert.match(html, new RegExp(`data-atvu-panel="${tab}"`));
   }
-  assert.match(html, /TV name/);
+  assert.match(html, /Device name/);
   assert.match(html, /data-theme="dark"/);
   assert.match(html, /prefers-color-scheme: dark/);
   assert.match(html, /id="atvuPackageButton"/);
@@ -24,6 +24,13 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /Clear detected package/);
   assert.match(html, /id="atvuEditExposure"/);
   assert.match(html, /Standalone accessory \(exact profile glyph\)/);
+  for (const control of ['Power', 'Remote', 'Media', 'Volume', 'Mute', 'Inputs', 'WakeOnLan']) {
+    assert.match(html, new RegExp(`id="atvuControl${control}"`));
+  }
+  assert.match(html, /id="atvuApplyControlDefaults"/);
+  assert.match(html, /Android key-code mapping/);
+  assert.match(html, /Apple Home input type/);
+  assert.match(html, /Android key code/);
   for (const profile of ['Streaming Stick', 'Apple TV', 'Audio Receiver', 'Speaker', 'HomePod']) {
     assert.match(html, new RegExp(`>${profile}<`));
   }

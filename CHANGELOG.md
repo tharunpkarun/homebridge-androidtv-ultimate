@@ -8,6 +8,10 @@ All notable changes are documented here.
 - Apply the configured Television or Set-top Box HAP category and add an opt-in standalone exposure mode for exact profile glyphs.
 - Preserve bridged exposure by default and document the Apple Home re-pairing implications when switching an existing TV to standalone.
 - Add per-device Streaming Stick, Apple TV, Audio Receiver, Speaker, and HomePod presentation profiles.
+- Use Television, Speaker, or Smart Speaker as the profile-appropriate primary HomeKit service.
+- Add per-device Power, navigation, media, volume, mute, input, and Wake-on-LAN switches to the custom UI and configuration schema.
+- Add editable Android key-code mappings for every navigation and media command.
+- Expand inputs with HomeKit source types, stable identifiers, Android packages/deep links, active-package matching, and custom key commands.
 
 ## 0.3.4 - 2026-07-27
 

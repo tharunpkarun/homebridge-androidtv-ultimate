@@ -2,9 +2,67 @@ import type { PlatformConfig } from 'homebridge';
 
 export interface AppInputConfig {
   name: string;
-  uri: string;
+  uri?: string;
   identifier?: number;
   packageName?: string;
+  type?: AppInputType;
+  keyCode?: number;
+}
+
+export type AppInputType =
+  | 'other'
+  | 'home'
+  | 'tuner'
+  | 'hdmi'
+  | 'composite'
+  | 'svideo'
+  | 'component'
+  | 'dvi'
+  | 'airplay'
+  | 'usb'
+  | 'application';
+
+export type AndroidTvDeviceType =
+  | 'television'
+  | 'settopbox'
+  | 'streamingstick'
+  | 'appletv'
+  | 'audioreceiver'
+  | 'speaker'
+  | 'homepod';
+
+export type AndroidRemoteKeyName =
+  | 'up'
+  | 'down'
+  | 'left'
+  | 'right'
+  | 'select'
+  | 'back'
+  | 'home'
+  | 'menu'
+  | 'info'
+  | 'volumeUp'
+  | 'volumeDown'
+  | 'playPause'
+  | 'play'
+  | 'pause'
+  | 'stop'
+  | 'next'
+  | 'previous'
+  | 'rewind'
+  | 'fastForward';
+
+export type AndroidTvKeyMappings = Partial<Record<AndroidRemoteKeyName, number>>;
+
+export interface AndroidTvControlConfig {
+  power?: boolean;
+  remote?: boolean;
+  media?: boolean;
+  volume?: boolean;
+  mute?: boolean;
+  inputs?: boolean;
+  wakeOnLan?: boolean;
+  keyMappings?: AndroidTvKeyMappings;
 }
 
 export interface LearnedInputMapping {
@@ -27,8 +85,9 @@ export interface AndroidTvDeviceConfig {
   manufacturer?: string;
   mac?: string;
   broadcastAddress?: string;
-  deviceType?: 'television' | 'settopbox' | 'streamingstick' | 'appletv' | 'audioreceiver' | 'speaker' | 'homepod';
+  deviceType?: AndroidTvDeviceType;
   exposureMode?: 'bridged' | 'standalone';
+  controls?: AndroidTvControlConfig;
   inputs?: AppInputConfig[];
 }
 

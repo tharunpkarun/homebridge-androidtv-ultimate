@@ -3,7 +3,8 @@ import type { AppInputConfig, LearnedInputMapping } from '../types';
 export interface InputPackageBinding {
   identifier: number;
   name: string;
-  uri: string;
+  uri?: string;
+  keyCode?: number;
   packageName?: string;
   learnedPackageName?: string;
 }

@@ -149,7 +149,12 @@
   .atvu-check { display: flex; gap: 8px; align-items: flex-start; color: var(--atvu-text); font-size: .76rem; }
   .atvu-check input { margin-top: 3px; }
   .atvu-input-row-wrap { margin-bottom: 9px; }
-  .atvu-input-row { display: grid; grid-template-columns: 1fr 1.35fr 1.2fr 70px auto; gap: 6px; }
+  .atvu-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+  .atvu-control-grid .atvu-check { padding: 9px; border: 1px solid var(--atvu-border); border-radius: 8px; background: var(--atvu-surface-soft); }
+  .atvu-key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; margin-top: 10px; }
+  .atvu-key-grid .atvu-field label { font-size: .67rem; }
+  .atvu-input-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; border: 1px solid var(--atvu-border); border-radius: 9px; background: var(--atvu-surface-soft); }
+  .atvu-input-row-actions { display: flex; align-items: end; justify-content: flex-end; }
   .atvu-learned-map { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; color: var(--atvu-muted); font-size: .68rem; margin: 5px 0 0; }
   .atvu-divider { border: 0; border-top: 1px solid var(--atvu-border); margin: 14px 0; }
   .atvu-pair-code { max-width: 220px; text-transform: uppercase; letter-spacing: .28em; font-size: 1.1rem; font-weight: 800; text-align: center; }
@@ -167,7 +172,7 @@
     .atvu-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .atvu-form-grid { grid-template-columns: 1fr; }
     .atvu-field-wide { grid-column: auto; }
-    .atvu-input-row { grid-template-columns: 1fr; padding: 9px; border: 1px solid var(--atvu-border); border-radius: 9px; }
+    .atvu-input-row { grid-template-columns: 1fr; }
   }
 </style>
 
@@ -256,7 +261,7 @@
 
       <div class="atvu-section">
         <div class="atvu-section-header">
-          <div><h3>Configured televisions</h3><div class="atvu-subtitle">Each card maps to one independent HomeKit Television accessory.</div></div>
+          <div><h3>Configured devices</h3><div class="atvu-subtitle">Each card maps to one independent, profile-aware HomeKit accessory.</div></div>
           <button id="atvuRefresh" class="atvu-button" type="button">Refresh state</button>
         </div>
         <div id="atvuDevices" class="atvu-grid"></div>
@@ -279,12 +284,12 @@
 
       <div id="atvuDeviceEditor" class="atvu-section" hidden>
         <div class="atvu-section-header">
-          <div><span class="atvu-eyebrow">Device editor</span><h3 id="atvuEditorTitle">Configure television</h3><div class="atvu-subtitle">Friendly identity, network connection, HomeKit profile, Wake-on-LAN, and app inputs.</div></div>
+          <div><span class="atvu-eyebrow">Device editor</span><h3 id="atvuEditorTitle">Configure device</h3><div class="atvu-subtitle">Friendly identity, network connection, HomeKit profile, controls, Wake-on-LAN, and inputs.</div></div>
           <button id="atvuEditorCancel" class="atvu-button" type="button">Close editor</button>
         </div>
         <div class="atvu-form-grid">
-          <div class="atvu-field"><label for="atvuEditName">TV name *</label><input id="atvuEditName" class="atvu-input"><span class="atvu-help">This is the name shown in Apple Home.</span></div>
-          <div class="atvu-field"><label for="atvuEditType">HomeKit profile</label><select id="atvuEditType" class="atvu-input"><option value="television">Television</option><option value="settopbox">Set-top Box</option><option value="streamingstick">Streaming Stick</option><option value="appletv">Apple TV</option><option value="audioreceiver">Audio Receiver</option><option value="speaker">Speaker</option><option value="homepod">HomePod</option></select><span class="atvu-help">Selects the exact glyph for standalone accessories. Controls remain Android TV controls for every profile.</span></div>
+          <div class="atvu-field"><label for="atvuEditName">Device name *</label><input id="atvuEditName" class="atvu-input"><span class="atvu-help">This is the name shown in Apple Home.</span></div>
+          <div class="atvu-field"><label for="atvuEditType">HomeKit profile</label><select id="atvuEditType" class="atvu-input"><option value="television">Television</option><option value="settopbox">Set-top Box</option><option value="streamingstick">Streaming Stick</option><option value="appletv">Apple TV</option><option value="audioreceiver">Audio Receiver</option><option value="speaker">Speaker</option><option value="homepod">HomePod</option></select><span class="atvu-help">Selects the primary HomeKit service, standalone glyph, and recommended controls.</span></div>
           <div class="atvu-field atvu-field-wide"><label for="atvuEditExposure">Apple Home exposure</label><select id="atvuEditExposure" class="atvu-input"><option value="bridged">Homebridge bridge (default)</option><option value="standalone">Standalone accessory (exact profile glyph)</option></select><span class="atvu-help">Standalone TVs must be added to Apple Home separately. Changing exposure can remove the old bridged tile, so choose a room and rebuild affected automations after pairing.</span></div>
           <div class="atvu-field"><label for="atvuEditManufacturer">Manufacturer</label><input id="atvuEditManufacturer" class="atvu-input" placeholder="Not advertised"></div>
           <div class="atvu-field"><label for="atvuEditModel">Model</label><input id="atvuEditModel" class="atvu-input" placeholder="Not advertised"></div>
@@ -299,10 +304,24 @@
           <div class="atvu-field"><label for="atvuEditServiceName">mDNS service identity</label><input id="atvuEditServiceName" class="atvu-input atvu-mono" readonly></div>
         </div>
         <hr class="atvu-divider">
-        <div class="atvu-section-header"><div><h4>App inputs</h4><div class="atvu-subtitle">Expose Android packages or deep links as inputs in Apple Home. The TV-confirmed foreground package controls the active input.</div></div><button id="atvuAddInput" class="atvu-button" type="button">Add app input</button></div>
+        <div class="atvu-section-header"><div><h4>Apple Home controls</h4><div class="atvu-subtitle">Choose the functions exposed by this device and override any Android key code for unusual firmware.</div></div><button id="atvuApplyControlDefaults" class="atvu-button" type="button">Apply profile defaults</button></div>
+        <div class="atvu-control-grid">
+          <label class="atvu-check"><input id="atvuControlPower" type="checkbox"><span><strong>Power</strong><br><span class="atvu-help">Turn the device on or off.</span></span></label>
+          <label class="atvu-check"><input id="atvuControlRemote" type="checkbox"><span><strong>Navigation remote</strong><br><span class="atvu-help">Arrows, select, back, home, menu, and info.</span></span></label>
+          <label class="atvu-check"><input id="atvuControlMedia" type="checkbox"><span><strong>Media controls</strong><br><span class="atvu-help">Play, pause, stop, skip, seek, and HomePod media state.</span></span></label>
+          <label class="atvu-check"><input id="atvuControlVolume" type="checkbox"><span><strong>Volume</strong><br><span class="atvu-help">Absolute volume and volume up/down.</span></span></label>
+          <label class="atvu-check"><input id="atvuControlMute" type="checkbox"><span><strong>Mute</strong><br><span class="atvu-help">Read and change mute state.</span></span></label>
+          <label class="atvu-check"><input id="atvuControlInputs" type="checkbox"><span><strong>Inputs</strong><br><span class="atvu-help">Expose the configured app and hardware inputs below.</span></span></label>
+          <label class="atvu-check"><input id="atvuControlWakeOnLan" type="checkbox"><span><strong>Wake-on-LAN</strong><br><span class="atvu-help">Wake an offline device when Power is enabled.</span></span></label>
+        </div>
+        <div class="atvu-callout" style="margin-top:10px">Apple requires core characteristics on Television and Smart Speaker services. Disabling one prevents commands from being sent; Apple Home may still render its standard button.</div>
+        <div class="atvu-section-header" style="margin-top:12px"><div><h4>Android key-code mapping</h4><div class="atvu-subtitle">Defaults follow Android KeyEvent. Change only a command your device handles differently.</div></div></div>
+        <div id="atvuKeyMappings" class="atvu-key-grid"></div>
+        <hr class="atvu-divider">
+        <div class="atvu-section-header"><div><h4>Inputs</h4><div class="atvu-subtitle">Expose apps, deep links, HDMI, tuner, USB, or custom Android key commands. A reported foreground package can confirm the active input.</div></div><button id="atvuAddInput" class="atvu-button" type="button">Add input</button></div>
         <div id="atvuInputRows"></div>
         <div class="atvu-toolbar" style="margin-top:12px">
-          <button id="atvuSaveDevice" class="atvu-button atvu-button-primary" type="button">Save television</button>
+          <button id="atvuSaveDevice" class="atvu-button atvu-button-primary" type="button">Save device</button>
           <button id="atvuSaveAndPair" class="atvu-button" type="button">Save & pair</button>
         </div>
       </div>
@@ -364,6 +383,7 @@
     let migration = null
     let editorDevice = null
     let editorInputs = []
+    let editorControls = null
     let lastUpdatedAt = null
     let lastDiagnostics = ''
     const testResults = new Map()
@@ -452,6 +472,43 @@
       })[value] || 'Television'
     }
 
+    const keyDefinitions = [
+      ['up', 'Up', 19], ['down', 'Down', 20], ['left', 'Left', 21], ['right', 'Right', 22],
+      ['select', 'Select', 23], ['back', 'Back', 4], ['home', 'Home', 3], ['menu', 'Menu', 82],
+      ['info', 'Information', 165], ['volumeUp', 'Volume Up', 24], ['volumeDown', 'Volume Down', 25],
+      ['playPause', 'Play / Pause', 85], ['play', 'Play', 126],
+      ['pause', 'Pause', 127], ['stop', 'Stop', 86], ['next', 'Next', 87], ['previous', 'Previous', 88],
+      ['rewind', 'Rewind', 89], ['fastForward', 'Fast Forward', 90],
+    ]
+    const controlIds = {
+      power: 'atvuControlPower', remote: 'atvuControlRemote', media: 'atvuControlMedia',
+      volume: 'atvuControlVolume', mute: 'atvuControlMute', inputs: 'atvuControlInputs',
+      wakeOnLan: 'atvuControlWakeOnLan',
+    }
+
+    function profileControlDefaults(profile = 'television') {
+      const defaults = { power: true, remote: true, media: true, volume: true, mute: true, inputs: true, wakeOnLan: true }
+      if (profile === 'speaker') return { ...defaults, remote: false, media: false, inputs: false }
+      if (profile === 'homepod') return { ...defaults, power: false, remote: false, inputs: false, wakeOnLan: false }
+      return defaults
+    }
+
+    function resolvedEditorControls(device) {
+      const defaults = profileControlDefaults(device.deviceType)
+      const configured = device.controls || {}
+      return {
+        ...defaults,
+        ...Object.fromEntries(Object.keys(defaults).map(key => [key, configured[key] ?? defaults[key]])),
+        keyMappings: Object.fromEntries(keyDefinitions.map(([key, , value]) => [key, configured.keyMappings?.[key] ?? value])),
+      }
+    }
+
+    function controlSummary(device) {
+      const controls = resolvedEditorControls(device)
+      return Object.entries({ Power: controls.power, Remote: controls.remote, Media: controls.media, Volume: controls.volume, Mute: controls.mute, Inputs: controls.inputs })
+        .filter(([, enabled]) => enabled).map(([label]) => label).join(' · ') || 'No commands enabled'
+    }
+
     function toConfig(device) {
       return {
         id: device.id,
@@ -467,6 +524,7 @@
         manufacturer: device.manufacturer,
         deviceType: device.deviceType || 'television',
         exposureMode: device.exposureMode || 'bridged',
+        controls: device.controls,
         inputs: device.inputs || [],
       }
     }
@@ -498,7 +556,7 @@
       const head = element('div', 'atvu-device-head')
       const icon = element('div', 'atvu-tv-icon'); icon.innerHTML = tvIcon
       const title = element('div', 'atvu-device-title')
-      title.append(element('span', 'atvu-eyebrow', 'TV name'), element('h4', '', merged.name || 'Unnamed Android TV'))
+      title.append(element('span', 'atvu-eyebrow', 'Device name'), element('h4', '', merged.name || 'Unnamed Android TV'))
       title.append(element('div', 'atvu-device-model', `${merged.manufacturer || 'Android TV / Google TV'} · ${merged.model || 'Model not advertised'}`))
       head.append(icon, title); card.append(head)
 
@@ -529,7 +587,8 @@
           facts.append(
             fact('HomeKit profile', homeKitProfileLabel(merged.deviceType)),
             fact('Apple Home exposure', merged.exposureMode === 'standalone' ? 'Standalone · pair separately' : 'Homebridge bridge'),
-            fact('App inputs', (merged.inputs || []).length),
+            fact('Enabled controls', controlSummary(merged)),
+            fact('Inputs', (merged.inputs || []).length),
             fact('Wake-on-LAN', merged.mac ? `Ready via ${merged.broadcastAddress || '255.255.255.255'}` : 'MAC address required'),
             fact('Paired since', pairing ? formatDate(pairing.pairedAt) : 'Not paired'),
             fact('Current app', status?.currentApp || 'Not reported'),
@@ -723,6 +782,37 @@
 
     function setInputValue(id, value) { byId(id).value = value ?? '' }
 
+    function renderControlEditor() {
+      if (!editorControls) return
+      Object.entries(controlIds).forEach(([key, id]) => { byId(id).checked = editorControls[key] === true })
+      const container = byId('atvuKeyMappings'); container.replaceChildren()
+      keyDefinitions.forEach(([key, label, defaultValue]) => {
+        const field = element('div', 'atvu-field')
+        const fieldLabel = element('label', '', label); fieldLabel.htmlFor = `atvuKey-${key}`
+        const input = element('input', 'atvu-input atvu-mono')
+        input.id = `atvuKey-${key}`; input.type = 'number'; input.min = '0'; input.max = '1000'
+        input.value = editorControls.keyMappings[key] ?? defaultValue
+        input.addEventListener('input', () => { editorControls.keyMappings[key] = input.value === '' ? defaultValue : Number(input.value) })
+        field.append(fieldLabel, input); container.append(field)
+      })
+      homebridge.fixScrollHeight()
+    }
+
+    function applyProfileControlDefaults() {
+      editorControls = {
+        ...profileControlDefaults(byId('atvuEditType').value),
+        keyMappings: Object.fromEntries(keyDefinitions.map(([key, , value]) => [key, value])),
+      }
+      renderControlEditor()
+    }
+
+    function inputEditorField(label, control, help) {
+      const field = element('div', 'atvu-field')
+      field.append(element('label', '', label), control)
+      if (help) field.append(element('span', 'atvu-help', help))
+      return field
+    }
+
     function openEditor(device = null) {
       const base = device ? toConfig(device) : {
         id: `manual-${Date.now().toString(36)}`,
@@ -731,7 +821,8 @@
       }
       editorDevice = { ...base }
       editorInputs = (base.inputs || []).map(input => ({ ...input }))
-      byId('atvuEditorTitle').textContent = base.name ? `Configure ${base.name}` : 'Add television manually'
+      editorControls = resolvedEditorControls(base)
+      byId('atvuEditorTitle').textContent = base.name ? `Configure ${base.name}` : 'Add device manually'
       setInputValue('atvuEditName', base.name); setInputValue('atvuEditType', base.deviceType || 'television')
       setInputValue('atvuEditExposure', base.exposureMode || 'bridged')
       setInputValue('atvuEditManufacturer', base.manufacturer); setInputValue('atvuEditModel', base.model)
@@ -739,6 +830,7 @@
       setInputValue('atvuEditRemotePort', base.remotePort || 6466); setInputValue('atvuEditPairingPort', base.pairingPort || 6467)
       setInputValue('atvuEditMac', base.mac); setInputValue('atvuEditBroadcast', base.broadcastAddress || '255.255.255.255')
       setInputValue('atvuEditId', base.id); setInputValue('atvuEditDiscoveryId', base.discoveryId); setInputValue('atvuEditServiceName', base.serviceName)
+      renderControlEditor()
       renderInputRows()
       byId('atvuDeviceEditor').hidden = false; byId('atvuNoEditor').hidden = true
       selectTab('settings')
@@ -746,7 +838,7 @@
 
     function renderInputRows() {
       const container = byId('atvuInputRows'); container.replaceChildren()
-      if (!editorInputs.length) container.append(element('div', 'atvu-empty', 'No app inputs configured. Add packages such as YouTube or a deep-link URI when needed.'))
+      if (!editorInputs.length) container.append(element('div', 'atvu-empty', 'No inputs configured. Add an app package, deep link, HDMI input, tuner, USB source, or device-specific key command.'))
       const usedIdentifiers = new Set()
       editorInputs.forEach((input, index) => {
         let inputIdentifier = input.identifier || index + 1
@@ -755,12 +847,27 @@
         const detected = editorDevice?.id ? learnedMapping(editorDevice.id, inputIdentifier) : undefined
         const wrapper = element('div', 'atvu-input-row-wrap')
         const row = element('div', 'atvu-input-row')
-        const name = element('input', 'atvu-input'); name.placeholder = 'Name'; name.value = input.name || ''; name.addEventListener('input', () => { editorInputs[index].name = name.value })
-        const uri = element('input', 'atvu-input'); uri.placeholder = 'Package or URI'; uri.value = input.uri || ''; uri.addEventListener('input', () => { editorInputs[index].uri = uri.value })
+        const name = element('input', 'atvu-input'); name.placeholder = 'YouTube'; name.value = input.name || ''; name.addEventListener('input', () => { editorInputs[index].name = name.value })
+        const type = element('select', 'atvu-input')
+        ;[['application', 'Application'], ['home', 'Home Screen'], ['tuner', 'Tuner'], ['hdmi', 'HDMI'], ['composite', 'Composite Video'], ['svideo', 'S-Video'], ['component', 'Component Video'], ['dvi', 'DVI'], ['airplay', 'AirPlay'], ['usb', 'USB'], ['other', 'Other']].forEach(([value, label]) => {
+          const option = element('option', '', label); option.value = value; type.append(option)
+        })
+        type.value = input.type || 'application'; type.addEventListener('change', () => { editorInputs[index].type = type.value })
+        const uri = element('input', 'atvu-input atvu-mono'); uri.placeholder = 'Package, URI, or deep link'; uri.value = input.uri || ''; uri.addEventListener('input', () => { editorInputs[index].uri = uri.value })
+        const keyCode = element('input', 'atvu-input atvu-mono'); keyCode.type = 'number'; keyCode.min = '0'; keyCode.max = '1000'; keyCode.placeholder = 'Optional'; keyCode.value = input.keyCode ?? ''; keyCode.addEventListener('input', () => { editorInputs[index].keyCode = keyCode.value === '' ? undefined : Number(keyCode.value) })
         const packageName = element('input', 'atvu-input atvu-mono'); packageName.placeholder = detected ? `Detected: ${detected.packageName}` : 'Android package (optional)'; packageName.value = input.packageName || ''; packageName.addEventListener('input', () => { editorInputs[index].packageName = packageName.value })
         const identifier = element('input', 'atvu-input'); identifier.type = 'number'; identifier.min = '1'; identifier.max = '255'; identifier.placeholder = 'ID'; identifier.value = input.identifier || ''; identifier.addEventListener('input', () => { editorInputs[index].identifier = identifier.value ? Number(identifier.value) : undefined })
         const remove = action('Remove', () => { editorInputs.splice(index, 1); renderInputRows() }); remove.classList.add('atvu-button-danger')
-        row.append(name, uri, packageName, identifier, remove); wrapper.append(row)
+        const actions = element('div', 'atvu-input-row-actions'); actions.append(remove)
+        row.append(
+          inputEditorField('Name *', name),
+          inputEditorField('Apple Home input type', type),
+          inputEditorField('Android package, URI, or deep link', uri, 'Required unless an Android key code is supplied.'),
+          inputEditorField('Android key code', keyCode, 'Optional alternative for hardware or device-specific inputs.'),
+          inputEditorField('Active Android package', packageName, 'Optional; used to confirm the selected input.'),
+          inputEditorField('HomeKit identifier', identifier, 'Optional stable ID from 1 to 255.'),
+          actions,
+        ); wrapper.append(row)
         if (detected) {
           const learned = element('div', 'atvu-learned-map')
           learned.append(element('span', '', `Automatically detected package: ${detected.packageName} · ${formatDate(detected.learnedAt)}`))
@@ -787,23 +894,38 @@
       if (!editorDevice) throw new Error('Open a device editor first')
       const name = byId('atvuEditName').value.trim()
       const host = byId('atvuEditHost').value.trim()
-      if (!name || !host) throw new Error('TV name and IP address or hostname are required')
-      const inputs = editorInputs.filter(input => input.name?.trim() && input.uri?.trim()).map(input => ({
+      if (!name || !host) throw new Error('Device name and IP address or hostname are required')
+      const incompleteInput = editorInputs.find(input => input.name?.trim() && !input.uri?.trim() && input.keyCode === undefined)
+      if (incompleteInput) throw new Error(`Input ${incompleteInput.name.trim()} needs an Android package, URI, deep link, or key code`)
+      const inputs = editorInputs.filter(input => input.name?.trim() && (input.uri?.trim() || input.keyCode !== undefined)).map(input => ({
         ...input,
         name: input.name.trim(),
-        uri: input.uri.trim(),
+        uri: input.uri?.trim() || undefined,
+        type: input.type || 'application',
         packageName: input.packageName?.trim() || undefined,
       }))
       const explicitPackages = inputs.map(input => input.packageName).filter(Boolean)
       const duplicatePackage = explicitPackages.find((value, index) => explicitPackages.indexOf(value) !== index)
       if (duplicatePackage) throw new Error(`Android package ${duplicatePackage} is assigned to more than one app input`)
       const optional = id => byId(id).value.trim() || undefined
+      const keyDefaults = Object.fromEntries(keyDefinitions.map(([key, , value]) => [key, value]))
+      const keyMappings = Object.fromEntries(keyDefinitions
+        .map(([key]) => [key, Number(editorControls?.keyMappings?.[key] ?? keyDefaults[key])])
+        .filter(([key, value]) => value !== keyDefaults[key]))
+      for (const [key, value] of Object.entries(keyMappings)) {
+        if (!Number.isInteger(value) || value < 0 || value > 1000) throw new Error(`${key} must be an Android key code from 0 to 1000`)
+      }
+      const controls = {
+        ...Object.fromEntries(Object.entries(controlIds).map(([key, id]) => [key, byId(id).checked])),
+        ...(Object.keys(keyMappings).length ? { keyMappings } : {}),
+      }
       return {
         ...editorDevice,
         id: byId('atvuEditId').value.trim() || editorDevice.id,
         name, host,
         deviceType: byId('atvuEditType').value,
         exposureMode: byId('atvuEditExposure').value,
+        controls,
         manufacturer: optional('atvuEditManufacturer'), model: optional('atvuEditModel'), hostname: optional('atvuEditHostname'),
         remotePort: Number(byId('atvuEditRemotePort').value || 6466), pairingPort: Number(byId('atvuEditPairingPort').value || 6467),
         mac: optional('atvuEditMac'), broadcastAddress: optional('atvuEditBroadcast'), inputs,
@@ -821,7 +943,7 @@
         const exposureNotice = device.exposureMode === 'standalone'
           ? ' Restart Homebridge, then add this TV to Apple Home separately with the Homebridge setup code.'
           : ' Restart Homebridge to apply accessory changes.'
-        homebridge.toast.success(`Television configuration saved.${exposureNotice}`, device.name)
+        homebridge.toast.success(`Device configuration saved.${exposureNotice}`, device.name)
         await refresh()
         if (pairAfter) await beginPair(device)
       } catch (error) {
@@ -964,8 +1086,10 @@
     byId('atvuPairComplete').addEventListener('click', completePairing); byId('atvuPairCancel').addEventListener('click', cancelPairing)
     byId('atvuCode').addEventListener('keydown', event => { if (event.key === 'Enter') completePairing() })
     byId('atvuSaveSettings').addEventListener('click', () => saveGeneralSettings().catch(error => homebridge.toast.error(errorMessage(error), 'Could not save settings')))
-    byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null })
-    byId('atvuAddInput').addEventListener('click', () => { editorInputs.push({ name: '', uri: '' }); renderInputRows() })
+    byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null; editorControls = null })
+    byId('atvuApplyControlDefaults').addEventListener('click', applyProfileControlDefaults)
+    byId('atvuEditType').addEventListener('change', applyProfileControlDefaults)
+    byId('atvuAddInput').addEventListener('click', () => { editorInputs.push({ name: '', uri: '', type: 'application' }); renderInputRows() })
     byId('atvuSaveDevice').addEventListener('click', () => saveEditedDevice(false)); byId('atvuSaveAndPair').addEventListener('click', () => saveEditedDevice(true))
     byId('atvuLoadDiagnostics').addEventListener('click', generateDiagnostics)
     byId('atvuCopyDiagnostics').addEventListener('click', async () => { await copyText(lastDiagnostics); homebridge.toast.success('Diagnostics copied to clipboard.', 'Support bundle') })

@@ -127,15 +127,83 @@
                 { "title": "Standalone Accessory", "enum": ["standalone"] }
               ]
             },
+            "controls": {
+              "title": "Controls",
+              "description": "Enable controls per device and optionally override the Android key code sent for each remote or media action.",
+              "type": "object",
+              "properties": {
+                "power": { "title": "Power", "type": "boolean" },
+                "remote": { "title": "Navigation Remote", "type": "boolean" },
+                "media": { "title": "Media Controls", "type": "boolean" },
+                "volume": { "title": "Volume", "type": "boolean" },
+                "mute": { "title": "Mute", "type": "boolean" },
+                "inputs": { "title": "Inputs", "type": "boolean" },
+                "wakeOnLan": { "title": "Wake-on-LAN", "type": "boolean" },
+                "keyMappings": {
+                  "title": "Android Key-code Overrides",
+                  "type": "object",
+                  "properties": {
+                    "up": { "title": "Up", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "down": { "title": "Down", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "left": { "title": "Left", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "right": { "title": "Right", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "select": { "title": "Select", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "back": { "title": "Back", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "home": { "title": "Home", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "menu": { "title": "Menu", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "info": { "title": "Information", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "volumeUp": { "title": "Volume Up", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "volumeDown": { "title": "Volume Down", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "playPause": { "title": "Play / Pause", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "play": { "title": "Play", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "pause": { "title": "Pause", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "stop": { "title": "Stop", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "next": { "title": "Next", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "previous": { "title": "Previous", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "rewind": { "title": "Rewind", "type": "integer", "minimum": 0, "maximum": 1000 },
+                    "fastForward": { "title": "Fast Forward", "type": "integer", "minimum": 0, "maximum": 1000 }
+                  }
+                }
+              }
+            },
             "inputs": {
-              "title": "App Inputs",
+              "title": "Inputs",
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["name", "uri"],
+                "required": ["name"],
+                "anyOf": [
+                  { "required": ["uri"] },
+                  { "required": ["keyCode"] }
+                ],
                 "properties": {
                   "name": { "title": "Name", "type": "string" },
                   "uri": { "title": "Android TV URI or Package", "type": "string" },
+                  "type": {
+                    "title": "HomeKit Input Type",
+                    "type": "string",
+                    "default": "application",
+                    "oneOf": [
+                      { "title": "Application", "enum": ["application"] },
+                      { "title": "Home Screen", "enum": ["home"] },
+                      { "title": "Tuner", "enum": ["tuner"] },
+                      { "title": "HDMI", "enum": ["hdmi"] },
+                      { "title": "Composite Video", "enum": ["composite"] },
+                      { "title": "S-Video", "enum": ["svideo"] },
+                      { "title": "Component Video", "enum": ["component"] },
+                      { "title": "DVI", "enum": ["dvi"] },
+                      { "title": "AirPlay", "enum": ["airplay"] },
+                      { "title": "USB", "enum": ["usb"] },
+                      { "title": "Other", "enum": ["other"] }
+                    ]
+                  },
+                  "keyCode": {
+                    "title": "Android Key Code",
+                    "description": "Optional alternative to a URI for hardware or firmware-specific inputs.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
                   "packageName": {
                     "title": "Android Package Name",
                     "description": "Optional foreground package used to reflect this active input in Apple Home. Deep links can be learned automatically.",
