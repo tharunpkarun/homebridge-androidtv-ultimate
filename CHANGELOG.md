@@ -4,11 +4,15 @@ All notable changes are documented here.
 
 ## Unreleased
 
+## 0.3.4 - 2026-07-27
+
 - Corrected the Remote Service v2 pairing envelope, option/configuration field numbers, and configuration acknowledgement handling for TVs that ignored malformed pairing negotiations.
 - Added pairing state transitions and failures to the Homebridge log for actionable diagnostics.
 - Build the runtime automatically when installing a development commit directly from GitHub.
 - Hash the raw TLS RSA modulus and exponent bytes when validating the TV code, without adding sign-padding bytes that made correct codes fail.
 - Emit and log pairing-code validation failures instead of returning them only to the settings dialog.
+- Prefer the authenticated Remote Service connection over stale mDNS cache age in device-health badges.
+- Refresh visible device health every five seconds and immediately when the settings page becomes visible again.
 
 ## 0.3.3 - 2026-07-26
 
