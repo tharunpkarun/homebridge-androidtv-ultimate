@@ -2,6 +2,11 @@
 
 All notable changes are documented here.
 
+## Unreleased
+
+- Replace simultaneous package, deep-link, and key-code fields with a guided command-type editor that classifies existing inputs, validates commands inline, and preserves unsaved alternatives while switching modes.
+- Add command summaries to catalog choices without changing the catalog or saved configuration schemas.
+
 ## 0.4.1 - 2026-07-29
 
 - Convert bare Android package IDs to Remote Service v2 market launch links when switching Apple Home inputs, while preserving explicit deep links and catalog package mappings.

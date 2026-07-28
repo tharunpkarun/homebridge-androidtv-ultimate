@@ -36,6 +36,13 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /id="atvuInputSearch"/);
   assert.match(html, /id="atvuRefreshInputCatalog"/);
   assert.match(html, /Create custom input/);
+  assert.match(html, /src="input-editor\.js"/);
+  assert.match(html, /Command type/);
+  assert.match(html, /App package/);
+  assert.match(html, /Deep link \/ URI/);
+  assert.match(html, /Android key command/);
+  assert.match(html, /serializeCommand/);
+  assert.match(html, /validateCommandDraft/);
   assert.match(html, /Suggest a preset/);
   assert.match(html, /loadInputCatalog/);
   assert.match(html, /Edited from catalog/);
@@ -63,5 +70,10 @@ test('custom UI inline script has valid JavaScript syntax', async () => {
   assert.equal(scripts.length, 1);
   const script = scripts[0];
   assert.ok(script);
+  assert.doesNotThrow(() => new Function(script));
+});
+
+test('guided input editor helper has valid JavaScript syntax', async () => {
+  const script = await readFile(path.join(process.cwd(), 'homebridge-ui', 'public', 'input-editor.js'), 'utf8');
   assert.doesNotThrow(() => new Function(script));
 });

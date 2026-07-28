@@ -154,6 +154,7 @@
   .atvu-input-preset { min-width: 230px; width: auto; }
   .atvu-input-catalog-status { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin: -5px 0 10px; }
   .atvu-input-catalog-state { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; color: var(--atvu-muted); font-size: .68rem; margin: 5px 0 0; }
+  .atvu-input-validation { color: var(--atvu-danger); font-size: .68rem; margin: 5px 0 0; }
   .atvu-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
   .atvu-control-grid .atvu-check { padding: 9px; border: 1px solid var(--atvu-border); border-radius: 8px; background: var(--atvu-surface-soft); }
   .atvu-key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; margin-top: 10px; }
@@ -340,7 +341,7 @@
           <a class="atvu-button" href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/edit/main/catalog/input-presets.json" target="_blank" rel="noopener noreferrer">Suggest a preset</a>
         </div>
         <div id="atvuInputRows"></div>
-        <div class="atvu-callout" style="margin-top:10px">Presets only prefill editable values. HDMI uses standard Android key commands. Android has no portable direct USB command, so the USB preset opens the source selector; replace its key code if your TV provides a dedicated one.</div>
+        <div class="atvu-callout" style="margin-top:10px">Choose how each input opens: an app package, a deep link, or an Android key command. App packages are converted to the Remote Service v2 launch format automatically. HDMI uses standard Android key commands. Android has no portable direct USB command, so the USB preset opens the source selector.</div>
         <div class="atvu-toolbar" style="margin-top:12px">
           <button id="atvuSaveDevice" class="atvu-button atvu-button-primary" type="button">Save device</button>
           <button id="atvuSaveAndPair" class="atvu-button" type="button">Save & pair</button>
@@ -395,6 +396,7 @@
   <div class="atvu-footer">Remote Service v2 · Local control · Pairing secrets stay in Homebridge</div>
 </div>
 
+<script src="input-editor.js"></script>
 <script>
   (() => {
     let platform = { platform: 'AndroidTVUltimate', name: 'AndroidTV Ultimate', devices: [] }
@@ -404,6 +406,7 @@
     let migration = null
     let editorDevice = null
     let editorInputs = []
+    let editorInputDrafts = []
     let editorControls = null
     let inputCatalog = { schemaVersion: 1, updatedAt: '', presets: [], source: 'bundled' }
     let inputCatalogLoaded = false
@@ -412,6 +415,8 @@
     let lastUpdatedAt = null
     let lastDiagnostics = ''
     const testResults = new Map()
+    const inputEditor = window.AndroidTvInputEditor
+    const { COMMAND_MODES } = inputEditor
     const byId = id => document.getElementById(id)
     const errorMessage = error => error?.error?.message || error?.message || String(error)
     const text = value => value === undefined || value === null || value === '' ? 'Not advertised' : String(value)
@@ -855,7 +860,7 @@
         if (!groups.has(preset.group)) {
           const group = element('optgroup'); group.label = preset.group; groups.set(preset.group, group); select.append(group)
         }
-        const option = element('option', '', preset.name); option.value = preset.id; groups.get(preset.group).append(option)
+        const option = element('option', '', `${preset.name} — ${inputEditor.commandSummary(preset)}`); option.value = preset.id; groups.get(preset.group).append(option)
       })
       if (presets.some(preset => preset.id === selected)) select.value = selected
       select.disabled = !presets.length
@@ -946,7 +951,7 @@
       if (!input) return
       if (!input.presetId) {
         const exact = uniqueMatchingPreset(input)
-        if (exact) container.append(element('span', '', `Matches catalog preset ${exact.name}; it will be linked when saved.`))
+        if (exact) container.append(element('span', '', `Matches catalog preset ${exact.name} · ${inputEditor.commandSummary(exact)}; it will be linked when saved.`))
         return
       }
       const preset = (inputCatalog.presets || []).find(item => item.id === input.presetId)
@@ -955,14 +960,15 @@
         return
       }
       if (!inputMatchesPreset(input, preset)) {
-        container.append(badge('Edited from catalog', 'warning'), element('span', '', preset.name))
+        container.append(badge('Edited from catalog', 'warning'), element('span', '', `${preset.name} · originally ${inputEditor.commandSummary(preset)}`))
         container.append(action('Restore catalog defaults', () => {
           const identifier = editorInputs[index]?.identifier
           editorInputs[index] = { ...catalogPresetConfig(preset), ...(identifier ? { identifier } : {}) }
+          editorInputDrafts[index] = inputEditor.createCommandDraft(editorInputs[index])
           renderInputRows()
         }))
       } else {
-        container.append(badge('Catalog preset', 'success'), element('span', '', `${preset.name} · up to date`))
+        container.append(badge('Catalog preset', 'success'), element('span', '', `${preset.name} · ${inputEditor.commandSummary(preset)} · up to date`))
       }
     }
 
@@ -974,7 +980,9 @@
         || (preset.uri && input.uri === preset.uri)
         || (preset.keyCode !== undefined && input.keyCode === preset.keyCode && input.type === preset.type))
       if (duplicate) return homebridge.toast.error(`${preset.name} is already configured. You can edit its existing row.`, 'Input already added')
-      editorInputs.push(catalogPresetConfig(preset))
+      const configured = catalogPresetConfig(preset)
+      editorInputs.push(configured)
+      editorInputDrafts.push(inputEditor.createCommandDraft(configured))
       select.value = ''; byId('atvuAddInputPreset').disabled = true
       renderInputRows()
     }
@@ -987,6 +995,7 @@
       }
       editorDevice = { ...base }
       editorInputs = (base.inputs || []).map(input => ({ ...input }))
+      editorInputDrafts = editorInputs.map(input => inputEditor.createCommandDraft(input))
       editorControls = resolvedEditorControls(base)
       byId('atvuEditorTitle').textContent = base.name ? `Configure ${base.name}` : 'Add device manually'
       setInputValue('atvuEditName', base.name); setInputValue('atvuEditType', base.deviceType || 'television')
@@ -1008,6 +1017,8 @@
       if (!editorInputs.length) container.append(element('div', 'atvu-empty', 'No inputs configured. Choose a ready-made preset above or create a custom input.'))
       const usedIdentifiers = new Set()
       editorInputs.forEach((input, index) => {
+        const draft = editorInputDrafts[index] || inputEditor.createCommandDraft(input)
+        editorInputDrafts[index] = draft
         let inputIdentifier = input.identifier || index + 1
         while (usedIdentifiers.has(inputIdentifier)) inputIdentifier += 1
         usedIdentifiers.add(inputIdentifier)
@@ -1015,30 +1026,72 @@
         const wrapper = element('div', 'atvu-input-row-wrap')
         const row = element('div', 'atvu-input-row')
         const catalogState = element('div', 'atvu-input-catalog-state')
+        const validation = element('div', 'atvu-input-validation')
         catalogState.dataset.atvuInputIndex = String(index)
         const updateCatalogState = () => renderInputCatalogState(index, catalogState)
-        const name = element('input', 'atvu-input'); name.placeholder = 'YouTube'; name.value = input.name || ''; name.addEventListener('input', () => { editorInputs[index].name = name.value; updateCatalogState() })
+        const updateValidation = () => {
+          const message = inputEditor.validateCommandDraft(draft)
+          const show = Boolean(editorInputs[index]?.name?.trim()) || inputEditor.draftHasCommandValue(draft)
+          validation.textContent = show ? message || '' : ''
+          validation.hidden = !validation.textContent
+        }
+        const syncCommand = () => {
+          editorInputs[index] = inputEditor.serializeCommand(editorInputs[index], draft)
+          updateCatalogState()
+          updateValidation()
+        }
+        const name = element('input', 'atvu-input'); name.placeholder = 'YouTube'; name.value = input.name || ''; name.addEventListener('input', () => { editorInputs[index].name = name.value; updateCatalogState(); updateValidation() })
         const type = element('select', 'atvu-input')
         ;[['application', 'Application'], ['home', 'Home Screen'], ['tuner', 'Tuner'], ['hdmi', 'HDMI'], ['composite', 'Composite Video'], ['svideo', 'S-Video'], ['component', 'Component Video'], ['dvi', 'DVI'], ['airplay', 'AirPlay'], ['usb', 'USB'], ['other', 'Other']].forEach(([value, label]) => {
           const option = element('option', '', label); option.value = value; type.append(option)
         })
         type.value = input.type || 'application'; type.addEventListener('change', () => { editorInputs[index].type = type.value; updateCatalogState() })
-        const uri = element('input', 'atvu-input atvu-mono'); uri.placeholder = 'Package, URI, or deep link'; uri.value = input.uri || ''; uri.addEventListener('input', () => { editorInputs[index].uri = uri.value; updateCatalogState() })
-        const keyCode = element('input', 'atvu-input atvu-mono'); keyCode.type = 'number'; keyCode.min = '0'; keyCode.max = '1000'; keyCode.placeholder = 'Optional'; keyCode.value = input.keyCode ?? ''; keyCode.addEventListener('input', () => { editorInputs[index].keyCode = keyCode.value === '' ? undefined : Number(keyCode.value); updateCatalogState() })
+        const commandMode = element('select', 'atvu-input')
+        ;[[COMMAND_MODES.PACKAGE, 'App package'], [COMMAND_MODES.DEEP_LINK, 'Deep link / URI'], [COMMAND_MODES.KEY_CODE, 'Android key command']].forEach(([value, label]) => {
+          const option = element('option', '', label); option.value = value; commandMode.append(option)
+        })
+        commandMode.value = draft.mode
+        commandMode.addEventListener('change', () => {
+          draft.mode = commandMode.value
+          editorInputs[index] = inputEditor.serializeCommand(editorInputs[index], draft)
+          renderInputRows()
+        })
+        let commandField
+        if (draft.mode === COMMAND_MODES.PACKAGE) {
+          const packageInput = element('input', 'atvu-input atvu-mono')
+          packageInput.placeholder = 'com.netflix.ninja'; packageInput.value = draft.packageValue
+          packageInput.addEventListener('input', () => { draft.packageValue = packageInput.value; syncCommand() })
+          commandField = inputEditorField('App package *', packageInput, 'Enter the Android package ID. It is converted to the required launch link and also confirms the active app automatically.')
+        } else if (draft.mode === COMMAND_MODES.DEEP_LINK) {
+          const deepLink = element('input', 'atvu-input atvu-mono')
+          deepLink.placeholder = 'my-app://browse'; deepLink.value = draft.deepLinkValue
+          deepLink.addEventListener('input', () => { draft.deepLinkValue = deepLink.value; syncCommand() })
+          commandField = inputEditorField('Deep link or URI *', deepLink, 'Include a scheme such as https:, intent:, or the app-specific scheme.')
+        } else {
+          const keyCode = element('input', 'atvu-input atvu-mono')
+          keyCode.type = 'number'; keyCode.min = '0'; keyCode.max = '1000'; keyCode.step = '1'; keyCode.placeholder = '243'; keyCode.value = draft.keyCodeValue
+          keyCode.addEventListener('input', () => { draft.keyCodeValue = keyCode.value; syncCommand() })
+          commandField = inputEditorField('Android key code *', keyCode, 'Use a KeyEvent number for HDMI, tuner, USB, or a firmware-specific source command.')
+        }
         const packageName = element('input', 'atvu-input atvu-mono'); packageName.placeholder = detected ? `Detected: ${detected.packageName}` : 'Android package (optional)'; packageName.value = input.packageName || ''; packageName.addEventListener('input', () => { editorInputs[index].packageName = packageName.value; updateCatalogState() })
         const identifier = element('input', 'atvu-input'); identifier.type = 'number'; identifier.min = '1'; identifier.max = '255'; identifier.placeholder = 'ID'; identifier.value = input.identifier || ''; identifier.addEventListener('input', () => { editorInputs[index].identifier = identifier.value ? Number(identifier.value) : undefined })
-        const remove = action('Remove', () => { editorInputs.splice(index, 1); renderInputRows() }); remove.classList.add('atvu-button-danger')
+        const remove = action('Remove', () => { editorInputs.splice(index, 1); editorInputDrafts.splice(index, 1); renderInputRows() }); remove.classList.add('atvu-button-danger')
         const actions = element('div', 'atvu-input-row-actions'); actions.append(remove)
+        const packageHelp = draft.mode === COMMAND_MODES.PACKAGE
+          ? 'Usually leave blank—the app package above confirms the active input. Set this only if the TV reports a different package.'
+          : draft.mode === COMMAND_MODES.DEEP_LINK
+            ? 'Optional. Enter the foreground package, or leave blank so the plugin can learn it after launch.'
+            : 'Optional. Use only when the TV reports a package that identifies this hardware source.'
         row.append(
           inputEditorField('Name *', name),
           inputEditorField('Apple Home input type', type),
-          inputEditorField('Android package, URI, or deep link', uri, 'Required unless an Android key code is supplied.'),
-          inputEditorField('Android key code', keyCode, 'Optional alternative for hardware or device-specific inputs.'),
-          inputEditorField('Active Android package', packageName, 'Optional; used to confirm the selected input.'),
+          inputEditorField('Command type', commandMode, 'Choose the single command used when this input is selected.'),
+          commandField,
+          inputEditorField('Active Android package', packageName, packageHelp),
           inputEditorField('HomeKit identifier', identifier, 'Optional stable ID from 1 to 255.'),
           actions,
         ); wrapper.append(row)
-        updateCatalogState(); wrapper.append(catalogState)
+        updateCatalogState(); updateValidation(); wrapper.append(validation, catalogState)
         if (detected) {
           const learned = element('div', 'atvu-learned-map')
           learned.append(element('span', '', `Automatically detected package: ${detected.packageName} · ${formatDate(detected.learnedAt)}`))
@@ -1066,9 +1119,16 @@
       const name = byId('atvuEditName').value.trim()
       const host = byId('atvuEditHost').value.trim()
       if (!name || !host) throw new Error('Device name and IP address or hostname are required')
-      const incompleteInput = editorInputs.find(input => input.name?.trim() && !input.uri?.trim() && input.keyCode === undefined)
-      if (incompleteInput) throw new Error(`Input ${incompleteInput.name.trim()} needs an Android package, URI, deep link, or key code`)
-      const inputs = editorInputs.filter(input => input.name?.trim() && (input.uri?.trim() || input.keyCode !== undefined)).map(input => {
+      const commandInputs = editorInputs.map((input, index) => {
+        const draft = editorInputDrafts[index] || inputEditor.createCommandDraft(input)
+        return { input: inputEditor.serializeCommand(input, draft), draft }
+      }).filter(({ input, draft }) => input.name?.trim() || inputEditor.draftHasCommandValue(draft))
+      for (const { input, draft } of commandInputs) {
+        if (!input.name?.trim()) throw new Error('Every configured input needs a name')
+        const commandError = inputEditor.validateCommandDraft(draft)
+        if (commandError) throw new Error(`Input ${input.name.trim()}: ${commandError}`)
+      }
+      const inputs = commandInputs.map(({ input }) => {
         const normalizedInput = {
           ...input,
           name: input.name.trim(),
@@ -1116,6 +1176,7 @@
         await savePlatform()
         editorDevice = device
         editorInputs = (device.inputs || []).map(input => ({ ...input }))
+        editorInputDrafts = editorInputs.map(input => inputEditor.createCommandDraft(input))
         renderInputRows()
         const exposureNotice = device.exposureMode === 'standalone'
           ? ' Restart Homebridge, then add this TV to Apple Home separately with the Homebridge setup code.'
@@ -1263,14 +1324,17 @@
     byId('atvuPairComplete').addEventListener('click', completePairing); byId('atvuPairCancel').addEventListener('click', cancelPairing)
     byId('atvuCode').addEventListener('keydown', event => { if (event.key === 'Enter') completePairing() })
     byId('atvuSaveSettings').addEventListener('click', () => saveGeneralSettings().catch(error => homebridge.toast.error(errorMessage(error), 'Could not save settings')))
-    byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null; editorControls = null })
+    byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null; editorControls = null; editorInputs = []; editorInputDrafts = [] })
     byId('atvuApplyControlDefaults').addEventListener('click', applyProfileControlDefaults)
     byId('atvuEditType').addEventListener('change', applyProfileControlDefaults)
     byId('atvuInputSearch').addEventListener('input', renderInputPresetOptions)
     byId('atvuInputPreset').addEventListener('change', event => { byId('atvuAddInputPreset').disabled = !event.target.value })
     byId('atvuRefreshInputCatalog').addEventListener('click', () => { void loadInputCatalog() })
     byId('atvuAddInputPreset').addEventListener('click', addSelectedInputPreset)
-    byId('atvuAddInput').addEventListener('click', () => { editorInputs.push({ name: '', type: 'application' }); renderInputRows() })
+    byId('atvuAddInput').addEventListener('click', () => {
+      const input = { name: '', type: 'application' }
+      editorInputs.push(input); editorInputDrafts.push(inputEditor.createCommandDraft(input)); renderInputRows()
+    })
     byId('atvuSaveDevice').addEventListener('click', () => saveEditedDevice(false)); byId('atvuSaveAndPair').addEventListener('click', () => saveEditedDevice(true))
     byId('atvuLoadDiagnostics').addEventListener('click', generateDiagnostics)
     byId('atvuCopyDiagnostics').addEventListener('click', async () => { await copyText(lastDiagnostics); homebridge.toast.success('Diagnostics copied to clipboard.', 'Support bundle') })
