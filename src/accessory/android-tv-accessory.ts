@@ -23,6 +23,13 @@ import {
   resolveInputIdentifier,
   type InputPackageBinding,
 } from '../input/input-mapping';
+import {
+  activateCecWakeHelper,
+  isCecWakeHelperRouteAvailable,
+  resolveCecWakeConfig,
+  runCecWakeAttempt,
+  type CecWakeAttemptResult,
+} from '../power/cec-wake';
 
 interface InputBinding extends InputPackageBinding {
   service: Service;
@@ -40,6 +47,9 @@ export class AndroidTvAccessory {
   private readonly transport?: AndroidTvTransport;
   private readonly inputLearner: ActiveInputLearner;
   private smartMediaState = 2;
+  private wakeAttempt?: Promise<void>;
+  private communicationFailure?: { kind: Exclude<CecWakeAttemptResult, 'online'>; reason: string };
+  private stopped = false;
 
   constructor(
     private readonly platform: AndroidTvPlatform,
@@ -119,8 +129,47 @@ export class AndroidTvAccessory {
   }
 
   stop(): void {
+    this.stopped = true;
     this.inputLearner.cancel();
     this.transport?.stop();
+  }
+
+  canActAsCecWakeHelper(): boolean {
+    return isCecWakeHelperRouteAvailable({
+      paired: Boolean(this.transport),
+      connection: this.transport?.snapshot.connection ?? 'offline',
+      wakeOnLanEnabled: this.controls.wakeOnLan,
+      mac: this.device.mac,
+    });
+  }
+
+  async activateAsCecWakeHelper(powerToHomeDelayMs: number, timeoutMs: number): Promise<void> {
+    if (!this.transport) {
+      throw new Error(`${this.device.name} is not paired`);
+    }
+    const transport = this.transport;
+    await activateCecWakeHelper({
+      name: this.device.name,
+      connection: () => transport.snapshot.connection,
+      stopped: () => this.stopped,
+      dispatchWakeOnLan: this.controls.wakeOnLan && this.device.mac
+        ? () => wakeOnLan(this.device.mac!, this.device.broadcastAddress)
+        : undefined,
+      setPowerOn: () => transport.setPower(true),
+      sendHome: () => transport.sendKey(this.controls.keyMappings.home as AndroidKeyCode),
+      powerToHomeDelayMs,
+      timeoutMs,
+    });
+  }
+
+  wakeHelperStateChanged(helperDeviceId: string): void {
+    const cecWake = resolveCecWakeConfig(this.device.cecWake);
+    if (this.communicationFailure?.kind !== 'unavailable' || cecWake?.helperDeviceId !== helperDeviceId) {
+      return;
+    }
+    if (this.hasDispatchableWakeRoute(cecWake.helperDeviceId)) {
+      this.clearCommunicationFailure();
+    }
   }
 
   updateEndpoint(host: string, port: number): void {
@@ -179,7 +228,7 @@ export class AndroidTvAccessory {
   private configureCharacteristics(): void {
     const { Characteristic } = this.platform;
     this.television.getCharacteristic(Characteristic.Active)
-      .onGet(() => this.transport?.snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE)
+      .onGet(() => this.activeValue())
       .onSet(async value => {
         this.requireControl('power', 'Power');
         await this.setActive(value === Characteristic.Active.ACTIVE);
@@ -188,7 +237,7 @@ export class AndroidTvAccessory {
     const profile = this.device.deviceType ?? 'television';
     if (profile === 'speaker' && this.controls.power) {
       this.speaker.getCharacteristic(Characteristic.Active)
-        .onGet(() => this.transport?.snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE)
+        .onGet(() => this.activeValue())
         .onSet(async value => this.setActive(value === Characteristic.Active.ACTIVE));
     } else if (profile !== 'homepod' && (this.controls.volume || this.controls.mute)) {
       this.speaker.setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
@@ -280,6 +329,11 @@ export class AndroidTvAccessory {
       throw new Error(`${this.device.name} is not paired`);
     }
     if (active && this.transport.snapshot.connection !== 'online') {
+      const cecWake = resolveCecWakeConfig(this.device.cecWake);
+      if (cecWake) {
+        this.startCecWakeAttempt(cecWake);
+        return;
+      }
       if (!this.controls.wakeOnLan) {
         throw new Error(`${this.device.name} is offline and Wake-on-LAN is disabled`);
       }
@@ -290,6 +344,101 @@ export class AndroidTvAccessory {
       return;
     }
     await this.transport.setPower(active);
+  }
+
+  private startCecWakeAttempt(cecWake: NonNullable<ReturnType<typeof resolveCecWakeConfig>>): void {
+    if (this.wakeAttempt) {
+      this.log.debug('[%s] CEC wake is already in progress; coalescing this request.', this.device.name);
+      return;
+    }
+    this.clearCommunicationFailure();
+    const routes = [];
+    if (this.controls.wakeOnLan && this.device.mac) {
+      routes.push({
+        name: 'Wake-on-LAN',
+        dispatch: () => wakeOnLan(this.device.mac!, this.device.broadcastAddress),
+      });
+    }
+    if (cecWake.helperDeviceId !== this.device.id
+      && this.platform.canActivateCecWakeHelper(cecWake.helperDeviceId)) {
+      routes.push({
+        name: `CEC helper ${cecWake.helperDeviceId}`,
+        dispatch: () => this.platform.activateCecWakeHelper(
+          this.device.id,
+          cecWake.helperDeviceId,
+          cecWake.powerToHomeDelayMs,
+          cecWake.confirmationTimeoutMs,
+        ),
+      });
+    }
+    const attempt = runCecWakeAttempt({
+      routes,
+      confirmationTimeoutMs: cecWake.confirmationTimeoutMs,
+      isTargetOnline: () => this.stopped || this.transport?.snapshot.connection === 'online',
+      onRouteFailure: (route, error) => {
+        this.log.warn('[%s] %s wake route failed: %s', this.device.name, route.name, String(error));
+      },
+    }).then(result => {
+      if (this.stopped || result === 'online') {
+        return;
+      }
+      const reason = result === 'unavailable'
+        ? 'No usable Wake-on-LAN or CEC helper route is available'
+        : result === 'failed'
+          ? 'Every configured wake route failed'
+          : `The TV did not reconnect within ${cecWake.confirmationTimeoutMs / 1_000} seconds`;
+      this.log.warn('[%s] CEC wake did not confirm power on: %s.', this.device.name, reason);
+      if (cecWake.failureBehavior === 'noResponse') {
+        this.setCommunicationFailure(result, reason);
+      }
+    }).catch(error => {
+      this.log.warn('[%s] CEC wake attempt failed: %s', this.device.name, String(error));
+      if (!this.stopped && cecWake.failureBehavior === 'noResponse') {
+        this.setCommunicationFailure('failed', 'The CEC wake attempt could not be completed');
+      }
+    }).finally(() => {
+      if (this.wakeAttempt === attempt) {
+        this.wakeAttempt = undefined;
+      }
+    });
+    this.wakeAttempt = attempt;
+  }
+
+  private hasDispatchableWakeRoute(helperDeviceId: string): boolean {
+    return (this.controls.wakeOnLan && Boolean(this.device.mac))
+      || (helperDeviceId !== this.device.id && this.platform.canActivateCecWakeHelper(helperDeviceId));
+  }
+
+  private setCommunicationFailure(kind: Exclude<CecWakeAttemptResult, 'online'>, reason: string): void {
+    this.communicationFailure = { kind, reason };
+    const error = new Error(reason);
+    this.television.getCharacteristic(this.platform.Characteristic.Active).updateValue(error);
+    if ((this.device.deviceType ?? 'television') === 'speaker' && this.controls.power) {
+      this.speaker.getCharacteristic(this.platform.Characteristic.Active).updateValue(error);
+    }
+  }
+
+  private clearCommunicationFailure(): void {
+    if (!this.communicationFailure) {
+      return;
+    }
+    this.communicationFailure = undefined;
+    const active = this.transport?.snapshot.power
+      ? this.platform.Characteristic.Active.ACTIVE
+      : this.platform.Characteristic.Active.INACTIVE;
+    this.television.updateCharacteristic(this.platform.Characteristic.Active, active);
+    if ((this.device.deviceType ?? 'television') === 'speaker' && this.controls.power) {
+      this.speaker.updateCharacteristic(this.platform.Characteristic.Active, active);
+    }
+  }
+
+  private activeValue(): CharacteristicValue {
+    if (this.communicationFailure) {
+      throw new Error(this.communicationFailure.reason);
+    }
+    return this.transport?.snapshot.power
+      ? this.platform.Characteristic.Active.ACTIVE
+      : this.platform.Characteristic.Active.INACTIVE;
   }
 
   private async sendRemoteKey(value: number): Promise<void> {
@@ -335,15 +484,20 @@ export class AndroidTvAccessory {
 
   private handleState(snapshot: Readonly<DeviceSnapshot>): void {
     const { Characteristic } = this.platform;
-    this.television.updateCharacteristic(
-      Characteristic.Active,
-      snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE,
-    );
-    if ((this.device.deviceType ?? 'television') === 'speaker' && this.controls.power) {
-      this.speaker.updateCharacteristic(
+    if (snapshot.connection === 'online') {
+      this.clearCommunicationFailure();
+    }
+    if (!this.communicationFailure) {
+      this.television.updateCharacteristic(
         Characteristic.Active,
         snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE,
       );
+      if ((this.device.deviceType ?? 'television') === 'speaker' && this.controls.power) {
+        this.speaker.updateCharacteristic(
+          Characteristic.Active,
+          snapshot.power ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE,
+        );
+      }
     }
     if (this.smartSpeaker) {
       if (!snapshot.power) {
@@ -367,6 +521,7 @@ export class AndroidTvAccessory {
     if (this.controls.volume && snapshot.volume !== undefined) {
       this.audioService.updateCharacteristic(Characteristic.Volume, snapshot.volume);
     }
+    this.platform.notifyDeviceStateChanged(this.device.id);
     void this.platform.persistStatus(this.device, this.statusWithActiveInput(snapshot, Number(currentIdentifier)));
   }
 

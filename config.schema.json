@@ -192,6 +192,43 @@
                 }
               }
             },
+            "cecWake": {
+              "title": "HDMI-CEC Wake Helper",
+              "description": "Optionally wake this TV through another paired Android device, such as a set-top box, connected over HDMI-CEC.",
+              "type": "object",
+              "required": ["helperDeviceId"],
+              "properties": {
+                "helperDeviceId": {
+                  "title": "Helper Device",
+                  "type": "string"
+                },
+                "powerToHomeDelayMs": {
+                  "title": "Power-to-Home Delay",
+                  "description": "Milliseconds to wait before sending Home so the helper can assert itself as the active HDMI-CEC source.",
+                  "type": "integer",
+                  "default": 1500,
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "confirmationTimeoutSeconds": {
+                  "title": "TV Confirmation Timeout",
+                  "description": "Seconds to wait for the target TV's own Remote Service connection to confirm that it woke.",
+                  "type": "integer",
+                  "default": 30,
+                  "minimum": 10,
+                  "maximum": 120
+                },
+                "failureBehavior": {
+                  "title": "Failed Wake Behaviour",
+                  "type": "string",
+                  "default": "remainOff",
+                  "oneOf": [
+                    { "title": "Remain Off", "enum": ["remainOff"] },
+                    { "title": "Show No Response", "enum": ["noResponse"] }
+                  ]
+                }
+              }
+            },
             "inputs": {
               "title": "Inputs",
               "type": "array",

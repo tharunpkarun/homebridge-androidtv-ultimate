@@ -76,6 +76,15 @@ export interface AndroidTvControlConfig {
   keyMappings?: AndroidTvKeyMappings;
 }
 
+export type CecWakeFailureBehavior = 'remainOff' | 'noResponse';
+
+export interface CecWakeConfig {
+  helperDeviceId: string;
+  powerToHomeDelayMs?: number;
+  confirmationTimeoutSeconds?: number;
+  failureBehavior?: CecWakeFailureBehavior;
+}
+
 export interface LearnedInputMapping {
   deviceId: string;
   inputIdentifier: number;
@@ -99,6 +108,7 @@ export interface AndroidTvDeviceConfig {
   deviceType?: AndroidTvDeviceType;
   exposureMode?: 'bridged' | 'standalone';
   controls?: AndroidTvControlConfig;
+  cecWake?: CecWakeConfig;
   inputs?: AppInputConfig[];
 }
 

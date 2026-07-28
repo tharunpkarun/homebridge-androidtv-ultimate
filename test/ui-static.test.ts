@@ -27,6 +27,12 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   for (const control of ['Power', 'Remote', 'Media', 'Volume', 'Mute', 'Inputs', 'WakeOnLan']) {
     assert.match(html, new RegExp(`id="atvuControl${control}"`));
   }
+  assert.match(html, /id="atvuCecWakeHelper"/);
+  assert.match(html, /id="atvuCecWakeDelay"/);
+  assert.match(html, /id="atvuCecWakeTimeout"/);
+  assert.match(html, /id="atvuCecWakeFailure"/);
+  assert.match(html, /another paired Android device, such as a set-top box/i);
+  assert.match(html, /renderCecWakeHelperOptions/);
   assert.match(html, /id="atvuApplyControlDefaults"/);
   assert.match(html, /Android key-code mapping/);
   assert.match(html, /Apple Home input type/);
@@ -69,6 +75,16 @@ test('configuration schema supports reusable personal input presets', async () =
   assert.equal(properties?.customInputPresets?.type, 'array');
   assert.ok(properties?.customInputPresets?.items?.properties?.id);
   assert.ok(properties?.devices?.items?.properties?.inputs?.items?.properties?.customPresetId);
+});
+
+test('configuration schema supports a CEC wake helper and failure policy', async () => {
+  const schema = JSON.parse(await readFile(path.join(process.cwd(), 'config.schema.json'), 'utf8'));
+  const cecWake = schema.schema?.properties?.devices?.items?.properties?.cecWake;
+  assert.equal(cecWake?.type, 'object');
+  assert.ok(cecWake?.properties?.helperDeviceId);
+  assert.equal(cecWake?.properties?.powerToHomeDelayMs?.default, 1500);
+  assert.equal(cecWake?.properties?.confirmationTimeoutSeconds?.default, 30);
+  assert.equal(cecWake?.properties?.failureBehavior?.default, 'remainOff');
 });
 
 test('custom UI element IDs are unique', async () => {

@@ -327,6 +327,15 @@
           <label class="atvu-check"><input id="atvuControlWakeOnLan" type="checkbox"><span><strong>Wake-on-LAN</strong><br><span class="atvu-help">Wake an offline device when Power is enabled.</span></span></label>
         </div>
         <div class="atvu-callout" style="margin-top:10px">Apple requires core characteristics on Television and Smart Speaker services. Disabling one prevents commands from being sent; Apple Home may still render its standard button.</div>
+        <hr class="atvu-divider">
+        <div class="atvu-section-header"><div><h4>HDMI-CEC wake helper</h4><div class="atvu-subtitle">Wake this TV through another paired Android device, such as a set-top box, that can activate the TV over HDMI-CEC.</div></div></div>
+        <div class="atvu-form-grid">
+          <div class="atvu-field atvu-field-wide"><label for="atvuCecWakeHelper">CEC wake device</label><select id="atvuCecWakeHelper" class="atvu-input"><option value="">Disabled</option></select><span class="atvu-help">Only other paired Android devices are selectable. HDMI-CEC must be enabled on both devices.</span></div>
+          <div class="atvu-field"><label for="atvuCecWakeDelay">Power-to-Home delay</label><input id="atvuCecWakeDelay" class="atvu-input" type="number" min="0" max="10000" step="100"><span class="atvu-help">Milliseconds before Home is sent to make the helper the active HDMI source. Default: 1500.</span></div>
+          <div class="atvu-field"><label for="atvuCecWakeTimeout">TV confirmation timeout</label><input id="atvuCecWakeTimeout" class="atvu-input" type="number" min="10" max="120" step="1"><span class="atvu-help">Seconds to wait for this TV to reconnect. Default: 30.</span></div>
+          <div class="atvu-field atvu-field-wide"><label for="atvuCecWakeFailure">If wake is not confirmed</label><select id="atvuCecWakeFailure" class="atvu-input"><option value="remainOff">Keep showing Off</option><option value="noResponse">Show No Response in Apple Home</option></select><span class="atvu-help">The TV is never shown as On until its own Remote Service connection returns.</span></div>
+        </div>
+        <div class="atvu-callout" style="margin-top:10px">When the TV is offline, its own Wake-on-LAN and the CEC wake helper run together when available. The helper is never powered off with the TV.</div>
         <div class="atvu-section-header" style="margin-top:12px"><div><h4>Android key-code mapping</h4><div class="atvu-subtitle">Defaults follow Android KeyEvent. Change only a command your device handles differently.</div></div></div>
         <div id="atvuKeyMappings" class="atvu-key-grid"></div>
         <hr class="atvu-divider">
@@ -544,6 +553,39 @@
         .filter(([, enabled]) => enabled).map(([label]) => label).join(' · ') || 'No commands enabled'
     }
 
+    function cecWakeHelperLabel(device) {
+      const helperId = device.cecWake?.helperDeviceId
+      if (!helperId) return 'Disabled'
+      const helper = (platform.devices || []).find(item => item.id === helperId)
+      return helper ? helper.name : `Missing device (${helperId})`
+    }
+
+    function syncCecWakeFields() {
+      const enabled = Boolean(byId('atvuCecWakeHelper').value)
+      for (const id of ['atvuCecWakeDelay', 'atvuCecWakeTimeout', 'atvuCecWakeFailure']) byId(id).disabled = !enabled
+    }
+
+    function renderCecWakeHelperOptions(preferredValue) {
+      if (!editorDevice) return
+      const select = byId('atvuCecWakeHelper')
+      const selected = preferredValue ?? select.value ?? editorDevice.cecWake?.helperDeviceId ?? ''
+      select.replaceChildren()
+      const disabled = element('option', '', 'Disabled'); disabled.value = ''; select.append(disabled)
+      const paired = pairedMap()
+      for (const device of platform.devices || []) {
+        if (device.id === editorDevice.id || !paired.has(device.id)) continue
+        const option = element('option', '', `${device.name} · ${homeKitProfileLabel(device.deviceType)}`)
+        option.value = device.id; select.append(option)
+      }
+      if (selected && ![...select.options].some(option => option.value === selected)) {
+        const missing = (platform.devices || []).find(device => device.id === selected)
+        const option = element('option', '', missing ? `${missing.name} · pairing required` : `Missing device · ${selected}`)
+        option.value = selected; option.disabled = true; select.append(option)
+      }
+      select.value = selected
+      syncCecWakeFields()
+    }
+
     function toConfig(device) {
       return {
         id: device.id,
@@ -560,6 +602,7 @@
         deviceType: device.deviceType || 'television',
         exposureMode: device.exposureMode || 'bridged',
         controls: device.controls,
+        cecWake: device.cecWake,
         inputs: device.inputs || [],
       }
     }
@@ -625,6 +668,7 @@
             fact('Enabled controls', controlSummary(merged)),
             fact('Inputs', (merged.inputs || []).length),
             fact('Wake-on-LAN', merged.mac ? `Ready via ${merged.broadcastAddress || '255.255.255.255'}` : 'MAC address required'),
+            ...(merged.cecWake?.helperDeviceId ? [fact('CEC wake helper', cecWakeHelperLabel(merged))] : []),
             fact('Paired since', pairing ? formatDate(pairing.pairedAt) : 'Not paired'),
             fact('Current app', status?.currentApp || 'Not reported'),
             fact('Apple Home input', status?.currentInputName || (status?.currentApp ? 'No configured input' : 'None confirmed')),
@@ -707,7 +751,9 @@
     }
 
     function renderAll() {
-      renderStats(); renderProgress(); renderDashboard(); renderDiscovery(); renderConfigured(); homebridge.fixScrollHeight()
+      renderStats(); renderProgress(); renderDashboard(); renderDiscovery(); renderConfigured()
+      if (editorDevice) renderCecWakeHelperOptions()
+      homebridge.fixScrollHeight()
     }
 
     function selectTab(name) {
@@ -1149,6 +1195,10 @@
       setInputValue('atvuEditRemotePort', base.remotePort || 6466); setInputValue('atvuEditPairingPort', base.pairingPort || 6467)
       setInputValue('atvuEditMac', base.mac); setInputValue('atvuEditBroadcast', base.broadcastAddress || '255.255.255.255')
       setInputValue('atvuEditId', base.id); setInputValue('atvuEditDiscoveryId', base.discoveryId); setInputValue('atvuEditServiceName', base.serviceName)
+      setInputValue('atvuCecWakeDelay', base.cecWake?.powerToHomeDelayMs ?? 1500)
+      setInputValue('atvuCecWakeTimeout', base.cecWake?.confirmationTimeoutSeconds ?? 30)
+      setInputValue('atvuCecWakeFailure', base.cecWake?.failureBehavior || 'remainOff')
+      renderCecWakeHelperOptions(base.cecWake?.helperDeviceId || '')
       renderControlEditor()
       renderInputPresetOptions()
       renderPersonalPresets()
@@ -1311,6 +1361,24 @@
         ...Object.fromEntries(Object.entries(controlIds).map(([key, id]) => [key, byId(id).checked])),
         ...(Object.keys(keyMappings).length ? { keyMappings } : {}),
       }
+      const helperDeviceId = byId('atvuCecWakeHelper').value
+      let cecWake
+      if (helperDeviceId) {
+        if (helperDeviceId === (byId('atvuEditId').value.trim() || editorDevice.id)) throw new Error('A device cannot be its own CEC wake helper')
+        const helper = (platform.devices || []).find(device => device.id === helperDeviceId)
+        if (!helper) throw new Error('The selected CEC wake helper is no longer configured')
+        if (!pairedMap().has(helperDeviceId)) throw new Error(`${helper.name} must be paired before it can be used as a CEC wake helper`)
+        const powerToHomeDelayMs = Number(byId('atvuCecWakeDelay').value)
+        const confirmationTimeoutSeconds = Number(byId('atvuCecWakeTimeout').value)
+        if (!Number.isInteger(powerToHomeDelayMs) || powerToHomeDelayMs < 0 || powerToHomeDelayMs > 10000) throw new Error('CEC Power-to-Home delay must be from 0 to 10000 milliseconds')
+        if (!Number.isInteger(confirmationTimeoutSeconds) || confirmationTimeoutSeconds < 10 || confirmationTimeoutSeconds > 120) throw new Error('CEC confirmation timeout must be from 10 to 120 seconds')
+        cecWake = {
+          helperDeviceId,
+          powerToHomeDelayMs,
+          confirmationTimeoutSeconds,
+          failureBehavior: byId('atvuCecWakeFailure').value === 'noResponse' ? 'noResponse' : 'remainOff',
+        }
+      }
       return {
         ...editorDevice,
         id: byId('atvuEditId').value.trim() || editorDevice.id,
@@ -1318,6 +1386,7 @@
         deviceType: byId('atvuEditType').value,
         exposureMode: byId('atvuEditExposure').value,
         controls,
+        cecWake,
         manufacturer: optional('atvuEditManufacturer'), model: optional('atvuEditModel'), hostname: optional('atvuEditHostname'),
         remotePort: Number(byId('atvuEditRemotePort').value || 6466), pairingPort: Number(byId('atvuEditPairingPort').value || 6467),
         mac: optional('atvuEditMac'), broadcastAddress: optional('atvuEditBroadcast'), inputs,
@@ -1484,6 +1553,7 @@
     byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null; editorControls = null; editorInputs = []; editorInputDrafts = [] })
     byId('atvuApplyControlDefaults').addEventListener('click', applyProfileControlDefaults)
     byId('atvuEditType').addEventListener('change', applyProfileControlDefaults)
+    byId('atvuCecWakeHelper').addEventListener('change', syncCecWakeFields)
     byId('atvuInputSearch').addEventListener('input', renderInputPresetOptions)
     byId('atvuInputPreset').addEventListener('change', event => { byId('atvuAddInputPreset').disabled = !event.target.value })
     byId('atvuRefreshInputCatalog').addEventListener('click', () => { void loadInputCatalog() })

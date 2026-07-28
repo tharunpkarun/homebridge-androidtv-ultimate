@@ -204,3 +204,14 @@ test('rich input configuration applies HomeKit source types and supports key-onl
   assert.equal(input?.getCharacteristic(Characteristic.InputSourceType).value, Characteristic.InputSourceType.HDMI);
   assert.equal(input?.getCharacteristic(Characteristic.Identifier).value, 3);
 });
+
+test('CEC wake helper activation rejects recursive self-selection', async () => {
+  const { platform } = await platformHarness({
+    platform: 'AndroidTVUltimate',
+    devices: [{ id: 'tv', name: 'TV', host: '192.0.2.16' }],
+  });
+  await assert.rejects(
+    platform.activateCecWakeHelper('tv', 'tv', 1_500, 30_000),
+    /cannot be its own CEC wake helper/,
+  );
+});

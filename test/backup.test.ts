@@ -63,6 +63,12 @@ const config: AndroidTvPlatformConfig = {
     name: 'Living Room TV',
     host: '10.1.10.115',
     mac: 'AA:BB:CC:DD:EE:FF',
+    cecWake: {
+      helperDeviceId: 'paired-set-top-box',
+      powerToHomeDelayMs: 1_500,
+      confirmationTimeoutSeconds: 30,
+      failureBehavior: 'remainOff',
+    },
   }],
 };
 
@@ -115,6 +121,7 @@ test('encrypted backup restores config, pairing credentials, discovery, and stat
 
   const restored = await restoreEncryptedBackup(target, backup, 'correct horse battery staple');
   assert.equal(restored.config.devices?.[0]?.name, 'Living Room TV');
+  assert.equal(restored.config.devices?.[0]?.cecWake?.helperDeviceId, 'paired-set-top-box');
   assert.equal(restored.config.customInputPresets?.[0]?.uri, 'com.amazon.amazonvideo.livingroom');
   assert.equal(restored.restored.credentials, 1);
   assert.equal((await new CredentialStore(target).get('living-room-tv'))?.privateKey, credentials.privateKey);

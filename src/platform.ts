@@ -21,6 +21,7 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
   readonly debugEnabled: boolean;
   private readonly cachedAccessories = new Map<string, PlatformAccessory>();
   private readonly handlers = new Map<string, AndroidTvAccessory>();
+  private readonly deviceHandlers = new Map<string, AndroidTvAccessory>();
   private readonly credentialStore: CredentialStore;
   private readonly discoveryCache: DiscoveryCache;
   private readonly inputMappingStore: InputMappingStore;
@@ -85,6 +86,32 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
     return this.inputMappingStore.learn(deviceId, inputIdentifier, packageName);
   }
 
+  canActivateCecWakeHelper(helperDeviceId: string): boolean {
+    return this.deviceHandlers.get(helperDeviceId)?.canActAsCecWakeHelper() === true;
+  }
+
+  async activateCecWakeHelper(
+    targetDeviceId: string,
+    helperDeviceId: string,
+    powerToHomeDelayMs: number,
+    timeoutMs: number,
+  ): Promise<void> {
+    if (targetDeviceId === helperDeviceId) {
+      throw new Error('A device cannot be its own CEC wake helper');
+    }
+    const helper = this.deviceHandlers.get(helperDeviceId);
+    if (!helper) {
+      throw new Error(`CEC wake helper ${helperDeviceId} is not configured`);
+    }
+    await helper.activateAsCecWakeHelper(powerToHomeDelayMs, timeoutMs);
+  }
+
+  notifyDeviceStateChanged(deviceId: string): void {
+    for (const handler of this.deviceHandlers.values()) {
+      handler.wakeHelperStateChanged(deviceId);
+    }
+  }
+
   private async synchronizeAccessories(): Promise<void> {
     const configured = (this.config.devices ?? []).filter(device => device.id && device.name && device.host);
     const expectedBridged = new Set<string>();
@@ -123,7 +150,9 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
       const inputMappings = await this.inputMappingStore.list(device.id);
       const previous = this.handlers.get(uuid);
       previous?.stop();
-      this.handlers.set(uuid, new AndroidTvAccessory(this, accessory, device, credentials, inputMappings));
+      const handler = new AndroidTvAccessory(this, accessory, device, credentials, inputMappings);
+      this.handlers.set(uuid, handler);
+      this.deviceHandlers.set(device.id, handler);
       if (presentation.standalone) {
         this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
         this.log.info('[%s] Published as a standalone Apple Home accessory; pair it separately with the Homebridge setup code.', device.name);
@@ -146,6 +175,9 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
       for (const accessory of stale) {
         this.handlers.get(accessory.UUID)?.stop();
         this.handlers.delete(accessory.UUID);
+        if (typeof accessory.context.deviceId === 'string') {
+          this.deviceHandlers.delete(accessory.context.deviceId);
+        }
         this.cachedAccessories.delete(accessory.UUID);
       }
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, stale);

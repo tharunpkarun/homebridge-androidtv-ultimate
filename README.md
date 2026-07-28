@@ -68,6 +68,7 @@ The paired device appears in Apple Home as a Television accessory. AndroidTV Ult
 | Volume, mute, and absolute volume | 🟡 | Absolute targets are translated into Android volume-step commands using the TV-reported range |
 | Configurable Input Sources | 🟡 | Apps, deep links, HDMI, tuner, USB, and custom key commands; active feedback requires an Android package report |
 | Wake-on-LAN | 🟡 | Requires a network MAC and hardware network-standby support |
+| CEC wake using another Android device | 🟡 | A paired Android device, such as a set-top box, can activate its HDMI source to wake a CEC-compatible TV |
 | Docker operation | ✅ | Host networking is recommended for multicast and broadcast traffic |
 | Cloud APIs, analytics, or telemetry | ➖ | Not used |
 | ADB, Fire TV, voice streaming, or Remote Service v1 | ➖ | Outside the current scope |
@@ -160,8 +161,8 @@ TLS authentication alone is not considered ready. The plugin completes Android's
 The custom plugin modal is organized into four responsive tabs:
 
 - **Dashboard** — setup progress, discovered/configured/paired/online totals, and device health.
-- **Devices** — explicit device names, manufacturer/model, pairing and power state, endpoints, mDNS identity, hardware ID, first/last seen timestamps, Wake-on-LAN readiness, configured inputs, and connection testing.
-- **Settings** — platform behavior, manual device editing, HomeKit profile, bridged/standalone exposure, per-control switches, Android key mapping, network details, Wake-on-LAN, and rich input management.
+- **Devices** — explicit device names, manufacturer/model, pairing and power state, endpoints, mDNS identity, hardware ID, first/last seen timestamps, Wake-on-LAN and CEC-helper readiness, configured inputs, and connection testing.
+- **Settings** — platform behavior, manual device editing, HomeKit profile, bridged/standalone exposure, per-control switches, Android key mapping, network details, Wake-on-LAN, CEC wake using another Android device, and rich input management.
 - **Tools & Support** — package/runtime details, GitHub bug reporting, privacy-safe diagnostics, encrypted backup/restore, and legacy migration.
 
 The dashboard supports automatic, light, and dark themes. Automatic mode follows the browser or operating-system color preference.
@@ -266,6 +267,16 @@ The HomeKit accessory remains `Off` until the authenticated remote connection re
 
 Wake-on-LAN depends on hardware and firmware. Enable network standby, quick start, or the equivalent TV setting. Use the Ethernet/Wi-Fi network MAC—not a Bluetooth identifier.
 
+### CEC wake using another Android device
+
+If a TV cannot remain reachable for Wake-on-LAN, it can use another paired Android device, such as a set-top box, as its CEC wake device. When the TV is requested on, AndroidTV Ultimate powers or wakes the helper and then sends Home. A compatible helper becomes the active HDMI source, allowing HDMI-CEC to turn on the TV and select that input.
+
+Choose the helper in the target TV's device editor. Both devices must be configured and paired with AndroidTV Ultimate, connected through HDMI, and have HDMI-CEC enabled. The Power-to-Home delay defaults to 1500 milliseconds and can be adjusted for slower hardware. The target TV's own Wake-on-LAN and the CEC route are dispatched together when both are available.
+
+The target remains `Off` until its own authenticated Remote Service connection confirms that it is online. After the configurable confirmation timeout, the plugin can either keep showing `Off` or report `No Response` in Apple Home. Turning off the target never powers off the helper, and helper chains are not followed recursively.
+
+This method activates only the helper's HDMI input. It does not provide arbitrary HDMI input selection, and its reliability depends on the HDMI-CEC implementation in both devices and the TV.
+
 ### Docker and network requirements
 
 Host networking is recommended because mDNS multicast and Wake-on-LAN broadcast traffic may not cross a bridged container network.
@@ -322,6 +333,10 @@ The dashboard creates and maintains device identities automatically. The main op
 | `pairingPort` | `6467` | Remote Service v2 pairing port |
 | `mac` | — | Optional network MAC for identity matching and Wake-on-LAN |
 | `broadcastAddress` | `255.255.255.255` | Wake-on-LAN broadcast destination |
+| `cecWake.helperDeviceId` | — | Another paired Android device, such as a set-top box, used to wake this TV through HDMI-CEC |
+| `cecWake.powerToHomeDelayMs` | `1500` | Delay between activating the helper and sending Home to assert its HDMI source |
+| `cecWake.confirmationTimeoutSeconds` | `30` | Time allowed for the target TV to reconnect, from 10 to 120 seconds |
+| `cecWake.failureBehavior` | `remainOff` | Keep the TV Off or report No Response when wake is not confirmed |
 | `deviceType` | `television` | Apple Home profile: Television, Set-top Box, Streaming Stick, Apple TV, Audio Receiver, Speaker, or HomePod |
 | `exposureMode` | `bridged` | `bridged` keeps the TV on the Homebridge bridge; `standalone` advertises the exact profile category |
 | `controls.*` | Profile default | Enable Power, Remote, Media, Volume, Mute, Inputs, and Wake-on-LAN independently |
@@ -367,6 +382,12 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
           "playPause": 85
         }
       },
+      "cecWake": {
+        "helperDeviceId": "paired-set-top-box",
+        "powerToHomeDelayMs": 1500,
+        "confirmationTimeoutSeconds": 30,
+        "failureBehavior": "remainOff"
+      },
       "inputs": [
         {
           "name": "Streaming App",
@@ -376,6 +397,13 @@ Fields such as `discoveryId`, `serviceName`, and `hostname` are maintained by di
           "identifier": 1
         }
       ]
+    },
+    {
+      "id": "paired-set-top-box",
+      "name": "Set-top Box",
+      "host": "192.168.1.41",
+      "deviceType": "settopbox",
+      "mac": "11:22:33:44:55:66"
     }
   ]
 }
@@ -477,6 +505,16 @@ Changing an existing TV from bridged to standalone removes its old bridged tile.
 4. Confirm the Homebridge host or container can send UDP broadcasts.
 
 **Expected result:** the TV wakes, reconnects over TLS, and only then changes to `On` in HomeKit.
+
+### CEC wake does not turn on the TV
+
+1. Confirm the selected Android helper is paired and can be controlled from Apple Home.
+2. Enable HDMI-CEC on the TV and helper, then verify that waking the helper with its physical remote turns on the TV and selects its HDMI input.
+3. If the helper sleeps deeply, configure its network MAC and enable Wake-on-LAN.
+4. Increase the Power-to-Home delay when Home is sent before the helper is ready.
+5. Increase the confirmation timeout only when the TV wakes but its Remote Service reconnects slowly.
+
+**Expected result:** the helper activates its HDMI source, the TV wakes, and the target accessory changes to `On` only after the TV reconnects.
 
 > [!TIP]
 > Generate diagnostics from **Tools & Support** before opening an issue. Certificates and private keys are always excluded; TV names, local addresses, MAC addresses, hardware IDs, and fingerprints are redacted by default.

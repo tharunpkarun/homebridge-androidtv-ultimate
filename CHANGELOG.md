@@ -2,6 +2,11 @@
 
 All notable changes are documented here.
 
+## Unreleased
+
+- Add configurable CEC wake through another paired Android device, such as a set-top box, with parallel Wake-on-LAN, adjustable Power-to-Home timing, target confirmation, and optional HomeKit No Response reporting.
+- Keep CEC helper activation wake-only, prevent recursive helper chains, and retain the target's confirmed power state until its own Remote Service connection returns.
+
 ## 0.5.0 - 2026-07-29
 
 - Replace simultaneous package, deep-link, and key-code fields with a guided command-type editor that classifies existing inputs, validates commands inline, and preserves unsaved alternatives while switching modes.

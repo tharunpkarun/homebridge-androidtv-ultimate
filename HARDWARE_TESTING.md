@@ -14,6 +14,9 @@ Run this checklist on both Percee TV and Xstream before the first stable release
 - [ ] Volume up/down, absolute volume, and mute work without feedback loops.
 - [ ] Sleep and wake commands do not toggle in the wrong direction.
 - [ ] Wake-on-LAN works from deep standby where the hardware supports it.
+- [ ] A paired Android set-top box wakes the TV and selects its HDMI input through HDMI-CEC.
+- [ ] CEC wake sends Home after the configured delay and the TV remains Off until its own connection returns.
+- [ ] Failed CEC wake follows the configured Off or No Response policy without powering off the helper.
 - [ ] App Input Sources launch configured URIs.
 - [ ] Two TVs remain isolated while one is offline or reconnecting.
 - [ ] Pairing failure, revoked certificate, wrong IP, and blocked ports produce useful diagnostics.
