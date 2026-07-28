@@ -80,8 +80,21 @@ export function encodeKey(keyCode: AndroidKeyCode, direction = 3): Buffer {
   }).finish();
 }
 
+export function normalizeAppLaunchUri(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error('Android app launch URI cannot be empty');
+  }
+  return /^[A-Za-z][A-Za-z0-9+.-]*:/.test(normalized)
+    ? normalized
+    : `market://launch?id=${normalized}`;
+}
+
 export function encodeAppLaunch(uri: string): Buffer {
-  return new ProtoWriter().message(RemoteField.APP_LINK_LAUNCH_REQUEST, writer => writer.string(1, uri)).finish();
+  return new ProtoWriter().message(
+    RemoteField.APP_LINK_LAUNCH_REQUEST,
+    writer => writer.string(1, normalizeAppLaunchUri(uri)),
+  ).finish();
 }
 
 export function decodeRemoteMessage(message: Buffer): RemoteEvent {

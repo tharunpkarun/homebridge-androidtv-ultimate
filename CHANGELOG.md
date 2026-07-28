@@ -2,6 +2,10 @@
 
 All notable changes are documented here.
 
+## 0.4.1 - 2026-07-29
+
+- Convert bare Android package IDs to Remote Service v2 market launch links when switching Apple Home inputs, while preserving explicit deep links and catalog package mappings.
+
 ## 0.4.0 - 2026-07-28
 
 - Move app and hardware input presets into a versioned, PR-maintained GitHub JSON catalog with strict runtime and CI validation.

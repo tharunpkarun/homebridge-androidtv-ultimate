@@ -215,7 +215,7 @@ Opening the editor shows the bundled or last-known-good catalog immediately and 
 
 Every generated row remains editable, and **Create custom input** adds a blank row for any other package, deep link, source, or Android key command. Catalog-linked rows show **Edited from catalog** after a local change and offer **Restore catalog defaults**. Refreshing the catalog never rewrites saved inputs automatically; even a removed preset keeps its saved values.
 
-App presets use their standard Android TV package IDs. Hardware presets use Android `KeyEvent` values. HDMI has portable direct key commands; Android does not define a portable direct USB command, so the USB preset opens the TV's source selector with key code `178`. Replace that value when the television firmware exposes a dedicated USB command.
+App presets use their standard Android TV package IDs. When sending a command, AndroidTV Ultimate converts a bare package ID to the Remote Service v2 `market://launch?id=` form required by Android TV; the catalog and saved configuration remain readable package IDs, and explicit deep-link schemes are sent unchanged. Hardware presets use Android `KeyEvent` values. HDMI has portable direct key commands; Android does not define a portable direct USB command, so the USB preset opens the TV's source selector with key code `178`. Replace that value when the television firmware exposes a dedicated USB command.
 
 Remote Service v2 can launch Android app links and report the foreground Android package. When the TV reports a matching package, Apple Home selects that input automatically—even if the app was opened with the physical remote or another controller.
 

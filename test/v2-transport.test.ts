@@ -62,6 +62,12 @@ test('transport waits for the server-led handshake before sending commands', asy
   assert.equal(transport.snapshot.power, true);
   assert.equal(firstNumber(decodeFields(nestedField(writes[2]!, RemoteField.KEY_INJECT)), 1), AndroidKeyCode.HOME);
 
+  await transport.launchApp('com.netflix.ninja');
+  assert.equal(
+    firstBytes(decodeFields(nestedField(writes[3]!, RemoteField.APP_LINK_LAUNCH_REQUEST)), 1)?.toString(),
+    'market://launch?id=com.netflix.ninja',
+  );
+
   transport.stop();
 });
 

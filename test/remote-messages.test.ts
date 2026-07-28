@@ -4,10 +4,12 @@ import {
   AndroidKeyCode,
   RemoteField,
   decodeRemoteMessage,
+  encodeAppLaunch,
   encodeConfigure,
   encodeKey,
   encodePingResponse,
   encodeSetActive,
+  normalizeAppLaunchUri,
 } from '../src/protocol/remote-messages';
 import { ProtoWriter, decodeFields, firstBytes, firstNumber } from '../src/protocol/protobuf';
 
@@ -18,6 +20,28 @@ test('key injection uses the Remote Service v2 field numbers', () => {
   const fields = decodeFields(key);
   assert.equal(firstNumber(fields, 1), AndroidKeyCode.HOME);
   assert.equal(firstNumber(fields, 2), 3);
+});
+
+test('app launch converts package IDs to Remote Service v2 market launch links', () => {
+  assert.equal(normalizeAppLaunchUri(' com.netflix.ninja '), 'market://launch?id=com.netflix.ninja');
+  const launch = firstBytes(decodeFields(encodeAppLaunch('com.netflix.ninja')), RemoteField.APP_LINK_LAUNCH_REQUEST);
+  assert.ok(launch);
+  assert.equal(firstBytes(decodeFields(launch), 1)?.toString(), 'market://launch?id=com.netflix.ninja');
+});
+
+test('app launch preserves explicit URI schemes', () => {
+  for (const uri of [
+    'https://example.com/watch',
+    'intent://watch#Intent;scheme=example;end',
+    'market://launch?id=com.example.app',
+    'example-app://browse',
+  ]) {
+    assert.equal(normalizeAppLaunchUri(` ${uri} `), uri);
+  }
+});
+
+test('app launch rejects an empty command', () => {
+  assert.throws(() => encodeAppLaunch('   '), /cannot be empty/);
 });
 
 test('configure and set-active replies use the Remote Service v2 feature mask', () => {
