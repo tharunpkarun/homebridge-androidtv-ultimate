@@ -2,7 +2,7 @@
 
 All notable changes are documented here.
 
-## Unreleased
+## 0.4.0 - 2026-07-28
 
 - Move app and hardware input presets into a versioned, PR-maintained GitHub JSON catalog with strict runtime and CI validation.
 - Load cached or bundled presets immediately, refresh GitHub in the background with ETag support, and retain the last valid cache across network or catalog failures.
