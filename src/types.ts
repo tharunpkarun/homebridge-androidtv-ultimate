@@ -3,8 +3,18 @@ import type { PlatformConfig } from 'homebridge';
 export interface AppInputConfig {
   name: string;
   presetId?: string;
+  customPresetId?: string;
   uri?: string;
   identifier?: number;
+  packageName?: string;
+  type?: AppInputType;
+  keyCode?: number;
+}
+
+export interface CustomInputPreset {
+  id: string;
+  name: string;
+  uri?: string;
   packageName?: string;
   type?: AppInputType;
   keyCode?: number;
@@ -97,6 +107,7 @@ export interface AndroidTvPlatformConfig extends PlatformConfig {
   debug?: boolean;
   disconnectGraceMs?: number;
   discoveryIntervalSeconds?: number;
+  customInputPresets?: CustomInputPreset[];
   devices?: AndroidTvDeviceConfig[];
 }
 

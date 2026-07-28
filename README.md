@@ -217,6 +217,8 @@ Every generated row remains editable, and **Create custom input** adds a blank r
 
 Catalog choices show whether each preset is an app package or Android key command. Catalog-linked rows show **Edited from catalog** after a local change and offer **Restore catalog defaults**. Refreshing the catalog never rewrites saved inputs automatically; even a removed preset keeps its saved values.
 
+Use **Save to My presets** on a completed custom input to keep it in the plugin configuration and reuse it on other TVs. Personal presets appear in a dedicated **My presets** group above the public catalog and are included in encrypted plugin backups. Adding one to a TV creates an independent copy: updating or deleting the personal preset never silently changes existing TV inputs. A linked row can explicitly **Apply saved preset** or **Update My preset** when its values differ.
+
 App presets use their standard Android TV package IDs. When sending a command, AndroidTV Ultimate converts a bare package ID to the Remote Service v2 `market://launch?id=` form required by Android TV; the catalog and saved configuration remain readable package IDs, and explicit deep-link schemes are sent unchanged. Hardware presets use Android `KeyEvent` values. HDMI has portable direct key commands; Android does not define a portable direct USB command, so the USB preset opens the TV's source selector with key code `178`. Replace that value when the television firmware exposes a dedicated USB command.
 
 Remote Service v2 can launch Android app links and report the foreground Android package. When the TV reports a matching package, Apple Home selects that input automatically—even if the app was opened with the physical remote or another controller.
@@ -305,7 +307,7 @@ The encryption key is derived from a passphrase with `scrypt`. The passphrase is
 
 Restoring replaces AndroidTV Ultimate's saved configuration and plugin data, then requires a Homebridge restart. For a complete Homebridge reinstall, also create a full Homebridge backup so the Apple Home bridge identity, cached accessories, and other plugins are preserved.
 
-The public input-catalog cache is deliberately excluded from encrypted backups because it contains no personal data and is recreated from the bundled or GitHub catalog.
+Personal input presets are part of the plugin configuration and are included in encrypted backups. The public input-catalog cache is deliberately excluded because it contains no personal data and is recreated from the bundled or GitHub catalog.
 
 ## Configuration
 
@@ -315,6 +317,7 @@ The dashboard creates and maintains device identities automatically. The main op
 | --- | ---: | --- |
 | `disconnectGraceMs` | `2500` | Delay before a disconnected device is reported as Off |
 | `discoveryIntervalSeconds` | `60` | Interval for refreshing cached mDNS endpoints |
+| `customInputPresets[]` | — | Reusable personal input templates saved in the plugin configuration and encrypted backups |
 | `remotePort` | `6466` | Remote Service v2 control port |
 | `pairingPort` | `6467` | Remote Service v2 pairing port |
 | `mac` | — | Optional network MAC for identity matching and Wake-on-LAN |
@@ -325,6 +328,7 @@ The dashboard creates and maintains device identities automatically. The main op
 | `controls.keyMappings.*` | Android default | Override the numeric Android key code for an individual remote, media, or volume-step command |
 | `inputs[].type` | `application` | Apple Home input type, including Application, HDMI, Tuner, USB, and the other HAP input types |
 | `inputs[].presetId` | — | Optional official catalog identity used to report local edits and restore defaults; it never enables automatic updates |
+| `inputs[].customPresetId` | — | Optional personal preset identity used to show edits and manually reapply saved defaults |
 | `inputs[].uri` | — | Android package, URI, or deep link to launch; optional when `keyCode` is set |
 | `inputs[].keyCode` | — | Numeric Android key command used instead of a URI |
 | `inputs[].packageName` | — | Optional foreground Android package used for TV-confirmed active-input feedback |

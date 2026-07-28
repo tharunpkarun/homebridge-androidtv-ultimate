@@ -52,6 +52,12 @@ const status: PersistedStatus = {
 const config: AndroidTvPlatformConfig = {
   platform: 'AndroidTVUltimate',
   name: 'AndroidTV Ultimate',
+  customInputPresets: [{
+    id: 'personal-prime-video',
+    name: 'Prime Video',
+    type: 'application',
+    uri: 'com.amazon.amazonvideo.livingroom',
+  }],
   devices: [{
     id: 'living-room-tv',
     name: 'Living Room TV',
@@ -109,6 +115,7 @@ test('encrypted backup restores config, pairing credentials, discovery, and stat
 
   const restored = await restoreEncryptedBackup(target, backup, 'correct horse battery staple');
   assert.equal(restored.config.devices?.[0]?.name, 'Living Room TV');
+  assert.equal(restored.config.customInputPresets?.[0]?.uri, 'com.amazon.amazonvideo.livingroom');
   assert.equal(restored.restored.credentials, 1);
   assert.equal((await new CredentialStore(target).get('living-room-tv'))?.privateKey, credentials.privateKey);
   const restoredDiscovery = new DiscoveryCache(target);

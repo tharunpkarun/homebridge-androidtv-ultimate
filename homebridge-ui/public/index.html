@@ -155,6 +155,10 @@
   .atvu-input-catalog-status { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin: -5px 0 10px; }
   .atvu-input-catalog-state { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; color: var(--atvu-muted); font-size: .68rem; margin: 5px 0 0; }
   .atvu-input-validation { color: var(--atvu-danger); font-size: .68rem; margin: 5px 0 0; }
+  .atvu-personal-presets { display: grid; gap: 7px; margin: 0 0 10px; }
+  .atvu-personal-preset { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--atvu-border); border-radius: 8px; background: var(--atvu-surface-soft); }
+  .atvu-personal-preset strong { display: block; font-size: .74rem; }
+  .atvu-personal-preset span { color: var(--atvu-muted); font-size: .68rem; overflow-wrap: anywhere; }
   .atvu-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
   .atvu-control-grid .atvu-check { padding: 9px; border: 1px solid var(--atvu-border); border-radius: 8px; background: var(--atvu-surface-soft); }
   .atvu-key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; margin-top: 10px; }
@@ -340,6 +344,7 @@
           <button id="atvuRefreshInputCatalog" class="atvu-button" type="button">Refresh catalog</button>
           <a class="atvu-button" href="https://github.com/tharunpkarun/homebridge-androidtv-ultimate/edit/main/catalog/input-presets.json" target="_blank" rel="noopener noreferrer">Suggest a preset</a>
         </div>
+        <div id="atvuPersonalPresets" class="atvu-personal-presets"></div>
         <div id="atvuInputRows"></div>
         <div class="atvu-callout" style="margin-top:10px">Choose how each input opens: an app package, a deep link, or an Android key command. App packages are converted to the Remote Service v2 launch format automatically. HDMI uses standard Android key commands. Android has no portable direct USB command, so the USB preset opens the source selector.</div>
         <div class="atvu-toolbar" style="margin-top:12px">
@@ -714,6 +719,7 @@
     async function savePlatform() {
       platform.platform = 'AndroidTVUltimate'
       platform.devices ||= []
+      platform.customInputPresets ||= []
       await homebridge.updatePluginConfig([platform])
       await homebridge.savePluginConfig()
     }
@@ -847,24 +853,54 @@
       const select = byId('atvuInputPreset')
       const selected = select.value
       const query = normalize(byId('atvuInputSearch').value)
-      const presets = (inputCatalog.presets || []).filter(preset => !query || normalize([
+      const personalPresets = (platform.customInputPresets || []).filter(preset => !query || normalize([
+        preset.name, preset.id, preset.uri, preset.packageName,
+      ].filter(Boolean).join(' ')).includes(query))
+      const catalogPresets = (inputCatalog.presets || []).filter(preset => !query || normalize([
         preset.name, preset.group, preset.id, preset.uri, preset.packageName,
       ].filter(Boolean).join(' ')).includes(query))
+      const availableValues = new Set()
       select.replaceChildren()
-      const placeholderText = !inputCatalogLoaded
+      const presetCount = personalPresets.length + catalogPresets.length
+      const placeholderText = !inputCatalogLoaded && !personalPresets.length
         ? 'Loading input catalog…'
-        : presets.length ? 'Choose an input preset…' : 'No matching presets'
+        : presetCount ? 'Choose an input preset…' : 'No matching presets'
       const placeholder = element('option', '', placeholderText); placeholder.value = ''; select.append(placeholder)
+      if (personalPresets.length) {
+        const group = element('optgroup'); group.label = 'My presets'; select.append(group)
+        personalPresets.forEach(preset => {
+          const value = `custom:${preset.id}`
+          const option = element('option', '', `${preset.name} — ${inputEditor.commandSummary(preset)}`)
+          option.value = value; group.append(option); availableValues.add(value)
+        })
+      }
       const groups = new Map()
-      presets.forEach(preset => {
+      catalogPresets.forEach(preset => {
         if (!groups.has(preset.group)) {
           const group = element('optgroup'); group.label = preset.group; groups.set(preset.group, group); select.append(group)
         }
-        const option = element('option', '', `${preset.name} — ${inputEditor.commandSummary(preset)}`); option.value = preset.id; groups.get(preset.group).append(option)
+        const value = `catalog:${preset.id}`
+        const option = element('option', '', `${preset.name} — ${inputEditor.commandSummary(preset)}`)
+        option.value = value; groups.get(preset.group).append(option); availableValues.add(value)
       })
-      if (presets.some(preset => preset.id === selected)) select.value = selected
-      select.disabled = !presets.length
+      if (availableValues.has(selected)) select.value = selected
+      select.disabled = !presetCount
       byId('atvuAddInputPreset').disabled = !select.value
+    }
+
+    function renderPersonalPresets() {
+      const container = byId('atvuPersonalPresets')
+      const presets = platform.customInputPresets || []
+      container.replaceChildren(); container.hidden = !presets.length
+      if (!presets.length) return
+      container.append(element('div', 'atvu-subtitle', `My presets · ${presets.length} reusable template${presets.length === 1 ? '' : 's'} saved in this plugin configuration`))
+      presets.forEach(preset => {
+        const row = element('div', 'atvu-personal-preset')
+        const details = element('div')
+        details.append(element('strong', '', preset.name), element('span', '', inputEditor.commandSummary(preset)))
+        const remove = action('Delete', () => { void deletePersonalPreset(preset) }); remove.classList.add('atvu-button-danger')
+        row.append(details, remove); container.append(row)
+      })
     }
 
     function renderInputCatalogStatus() {
@@ -933,11 +969,7 @@
     }
 
     function inputMatchesPreset(input, preset) {
-      return String(input.name || '') === String(preset.name || '')
-        && String(input.type || 'application') === String(preset.type || 'application')
-        && String(input.uri || '') === String(preset.uri || '')
-        && String(input.packageName || '') === String(preset.packageName || '')
-        && (input.keyCode ?? null) === (preset.keyCode ?? null)
+      return inputEditor.inputMatchesPreset(input, preset)
     }
 
     function uniqueMatchingPreset(input) {
@@ -945,11 +977,120 @@
       return matches.length === 1 ? matches[0] : undefined
     }
 
+    function uniqueMatchingPersonalPreset(input) {
+      const matches = (platform.customInputPresets || []).filter(preset => inputMatchesPreset(input, preset))
+      return matches.length === 1 ? matches[0] : undefined
+    }
+
+    function personalPresetId() {
+      const unique = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+      return `personal-${unique}`
+    }
+
+    function currentEditorInput(index) {
+      const input = editorInputs[index]
+      if (!input) throw new Error('This input is no longer available')
+      const draft = editorInputDrafts[index] || inputEditor.createCommandDraft(input)
+      const commandError = inputEditor.validateCommandDraft(draft)
+      if (!input.name?.trim()) throw new Error('Enter an input name before saving a personal preset')
+      if (commandError) throw new Error(commandError)
+      return inputEditor.serializeCommand(input, draft)
+    }
+
+    async function persistPersonalPresets(next) {
+      const previous = platform.customInputPresets || []
+      platform.customInputPresets = next
+      try {
+        await savePlatform()
+      } catch (error) {
+        platform.customInputPresets = previous
+        throw error
+      }
+      renderInputPresetOptions(); renderPersonalPresets(); renderInputRows()
+    }
+
+    async function saveInputToPersonalPresets(index) {
+      try {
+        const input = currentEditorInput(index)
+        const presets = platform.customInputPresets || []
+        const exact = presets.find(preset => inputMatchesPreset(input, preset))
+        if (exact) {
+          delete input.presetId
+          editorInputs[index] = { ...input, customPresetId: exact.id }
+          renderInputRows()
+          return homebridge.toast.success(`Using the existing personal preset ${exact.name}. Save the device to keep this link.`, 'My presets')
+        }
+        const sameName = presets.find(preset => normalize(preset.name) === normalize(input.name))
+        if (sameName && !window.confirm(`Replace the saved personal preset “${sameName.name}” with this input? Existing TV inputs will not change.`)) return
+        const id = sameName?.id || personalPresetId()
+        const preset = inputEditor.personalPresetDefinition(input, id)
+        const next = sameName ? presets.map(item => item.id === id ? preset : item) : [...presets, preset]
+        await persistPersonalPresets(next)
+        delete input.presetId
+        editorInputs[index] = { ...input, customPresetId: id }
+        renderInputRows()
+        homebridge.toast.success(`${preset.name} is now reusable on every configured TV. Save this device separately to keep its input changes.`, 'My presets')
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Could not save personal preset')
+      }
+    }
+
+    async function updatePersonalPreset(index, preset) {
+      try {
+        const input = currentEditorInput(index)
+        const updated = inputEditor.personalPresetDefinition(input, preset.id)
+        const next = (platform.customInputPresets || []).map(item => item.id === preset.id ? updated : item)
+        await persistPersonalPresets(next)
+        delete input.presetId
+        editorInputs[index] = { ...input, customPresetId: preset.id }
+        renderInputRows()
+        homebridge.toast.success(`${updated.name} was updated. Existing TV inputs remain unchanged until reapplied and saved.`, 'My presets')
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Could not update personal preset')
+      }
+    }
+
+    async function deletePersonalPreset(preset) {
+      if (!window.confirm(`Delete the personal preset “${preset.name}”? Existing TV inputs will keep their current values.`)) return
+      try {
+        await persistPersonalPresets((platform.customInputPresets || []).filter(item => item.id !== preset.id))
+        homebridge.toast.success(`${preset.name} was removed. Existing TV inputs were not changed.`, 'My presets')
+      } catch (error) {
+        homebridge.toast.error(errorMessage(error), 'Could not delete personal preset')
+      }
+    }
+
     function renderInputCatalogState(index, container) {
       container.replaceChildren()
       const input = editorInputs[index]
       if (!input) return
+      if (input.customPresetId) {
+        const preset = (platform.customInputPresets || []).find(item => item.id === input.customPresetId)
+        if (!preset) {
+          container.append(badge('Personal preset removed', 'warning'), element('span', '', 'This TV input keeps its saved values.'))
+          container.append(action('Save again to My presets', () => { void saveInputToPersonalPresets(index) }))
+          return
+        }
+        if (!inputMatchesPreset(input, preset)) {
+          container.append(badge('Edited from My preset', 'warning'), element('span', '', `${preset.name} · saved as ${inputEditor.commandSummary(preset)}`))
+          container.append(action('Apply saved preset', () => {
+            const identifier = editorInputs[index]?.identifier
+            editorInputs[index] = { ...inputEditor.personalPresetConfig(preset), ...(identifier ? { identifier } : {}) }
+            editorInputDrafts[index] = inputEditor.createCommandDraft(editorInputs[index])
+            renderInputRows()
+          }))
+          container.append(action('Update My preset', () => { void updatePersonalPreset(index, preset) }))
+        } else {
+          container.append(badge('My preset', 'success'), element('span', '', `${preset.name} · ${inputEditor.commandSummary(preset)}`))
+        }
+        return
+      }
       if (!input.presetId) {
+        const personal = uniqueMatchingPersonalPreset(input)
+        if (personal) {
+          container.append(element('span', '', `Matches My preset ${personal.name}; it will be linked when saved.`))
+          return
+        }
         const exact = uniqueMatchingPreset(input)
         if (exact) container.append(element('span', '', `Matches catalog preset ${exact.name} · ${inputEditor.commandSummary(exact)}; it will be linked when saved.`))
         return
@@ -974,13 +1115,16 @@
 
     function addSelectedInputPreset() {
       const select = byId('atvuInputPreset')
-      const preset = (inputCatalog.presets || []).find(item => item.id === select.value)
+      const [source, id] = select.value.split(':', 2)
+      const preset = source === 'custom'
+        ? (platform.customInputPresets || []).find(item => item.id === id)
+        : (inputCatalog.presets || []).find(item => item.id === id)
       if (!preset) return
-      const duplicate = editorInputs.some(input => input.presetId === preset.id
+      const duplicate = editorInputs.some(input => input.presetId === preset.id || input.customPresetId === preset.id
         || (preset.uri && input.uri === preset.uri)
         || (preset.keyCode !== undefined && input.keyCode === preset.keyCode && input.type === preset.type))
       if (duplicate) return homebridge.toast.error(`${preset.name} is already configured. You can edit its existing row.`, 'Input already added')
-      const configured = catalogPresetConfig(preset)
+      const configured = source === 'custom' ? inputEditor.personalPresetConfig(preset) : catalogPresetConfig(preset)
       editorInputs.push(configured)
       editorInputDrafts.push(inputEditor.createCommandDraft(configured))
       select.value = ''; byId('atvuAddInputPreset').disabled = true
@@ -1006,6 +1150,8 @@
       setInputValue('atvuEditMac', base.mac); setInputValue('atvuEditBroadcast', base.broadcastAddress || '255.255.255.255')
       setInputValue('atvuEditId', base.id); setInputValue('atvuEditDiscoveryId', base.discoveryId); setInputValue('atvuEditServiceName', base.serviceName)
       renderControlEditor()
+      renderInputPresetOptions()
+      renderPersonalPresets()
       renderInputRows()
       byId('atvuDeviceEditor').hidden = false; byId('atvuNoEditor').hidden = true
       selectTab('settings')
@@ -1076,7 +1222,9 @@
         const packageName = element('input', 'atvu-input atvu-mono'); packageName.placeholder = detected ? `Detected: ${detected.packageName}` : 'Android package (optional)'; packageName.value = input.packageName || ''; packageName.addEventListener('input', () => { editorInputs[index].packageName = packageName.value; updateCatalogState() })
         const identifier = element('input', 'atvu-input'); identifier.type = 'number'; identifier.min = '1'; identifier.max = '255'; identifier.placeholder = 'ID'; identifier.value = input.identifier || ''; identifier.addEventListener('input', () => { editorInputs[index].identifier = identifier.value ? Number(identifier.value) : undefined })
         const remove = action('Remove', () => { editorInputs.splice(index, 1); editorInputDrafts.splice(index, 1); renderInputRows() }); remove.classList.add('atvu-button-danger')
-        const actions = element('div', 'atvu-input-row-actions'); actions.append(remove)
+        const actions = element('div', 'atvu-input-row-actions')
+        if (!input.presetId && !input.customPresetId) actions.append(action('Save to My presets', () => { void saveInputToPersonalPresets(index) }))
+        actions.append(remove)
         const packageHelp = draft.mode === COMMAND_MODES.PACKAGE
           ? 'Usually leave blank—the app package above confirms the active input. Set this only if the TV reports a different package.'
           : draft.mode === COMMAND_MODES.DEEP_LINK
@@ -1136,8 +1284,17 @@
           type: input.type || 'application',
           packageName: input.packageName?.trim() || undefined,
         }
-        const matchingPreset = normalizedInput.presetId ? undefined : uniqueMatchingPreset(normalizedInput)
-        return { ...normalizedInput, ...(matchingPreset ? { presetId: matchingPreset.id } : {}) }
+        if (normalizedInput.customPresetId) delete normalizedInput.presetId
+        else if (normalizedInput.presetId) delete normalizedInput.customPresetId
+        const matchingPersonalPreset = normalizedInput.presetId || normalizedInput.customPresetId
+          ? undefined : uniqueMatchingPersonalPreset(normalizedInput)
+        const matchingCatalogPreset = normalizedInput.presetId || normalizedInput.customPresetId || matchingPersonalPreset
+          ? undefined : uniqueMatchingPreset(normalizedInput)
+        return {
+          ...normalizedInput,
+          ...(matchingPersonalPreset ? { customPresetId: matchingPersonalPreset.id } : {}),
+          ...(matchingCatalogPreset ? { presetId: matchingCatalogPreset.id } : {}),
+        }
       })
       const explicitPackages = inputs.map(input => input.packageName).filter(Boolean)
       const duplicatePackage = explicitPackages.find((value, index) => explicitPackages.indexOf(value) !== index)
@@ -1306,7 +1463,7 @@
       byId('atvuImportBackup').disabled = true
       try {
         const result = await homebridge.request('/backup/import', { backup, passphrase })
-        platform = result.config; platform.platform = 'AndroidTVUltimate'; platform.devices ||= []
+        platform = result.config; platform.platform = 'AndroidTVUltimate'; platform.devices ||= []; platform.customInputPresets ||= []
         await savePlatform(); loadGeneralSettings(); await refresh()
         byId('atvuRestorePassphrase').value = ''; byId('atvuBackupFile').value = ''
         homebridge.toast.success(`Restored ${result.restored.devices} TV(s), ${result.restored.credentials} pairing credential(s), and ${result.restored.inputMappings || 0} learned app mapping(s). Restart Homebridge now.`, 'Restore complete')
@@ -1348,8 +1505,8 @@
     renderInputPresetOptions(); renderInputCatalogStatus()
 
     Promise.all([homebridge.getPluginConfig(), homebridge.request('/about')]).then(async ([config, details]) => {
-      platform = config[0] || platform; platform.devices ||= []; aboutInfo = details || {}
-      loadGeneralSettings(); renderPackageDetails(); await refresh()
+      platform = config[0] || platform; platform.devices ||= []; platform.customInputPresets ||= []; aboutInfo = details || {}
+      loadGeneralSettings(); renderPackageDetails(); renderInputPresetOptions(); renderPersonalPresets(); await refresh()
       setInterval(() => { if (!document.hidden) void refresh(false) }, 5000)
       document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(false) })
     }).catch(error => homebridge.toast.error(errorMessage(error), 'Could not load AndroidTV Ultimate settings'))

@@ -36,6 +36,11 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /id="atvuInputSearch"/);
   assert.match(html, /id="atvuRefreshInputCatalog"/);
   assert.match(html, /Create custom input/);
+  assert.match(html, /id="atvuPersonalPresets"/);
+  assert.match(html, /Save to My presets/);
+  assert.match(html, /Apply saved preset/);
+  assert.match(html, /Update My preset/);
+  assert.match(html, /Personal preset removed/);
   assert.match(html, /src="input-editor\.js"/);
   assert.match(html, /Command type/);
   assert.match(html, /App package/);
@@ -56,6 +61,14 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /setInterval\(\(\) => \{ if \(!document\.hidden\) void refresh\(false\) \}, 5000\)/);
   assert.match(html, /visibilitychange/);
   assert.doesNotMatch(html, /window\.prompt/);
+});
+
+test('configuration schema supports reusable personal input presets', async () => {
+  const schema = JSON.parse(await readFile(path.join(process.cwd(), 'config.schema.json'), 'utf8'));
+  const properties = schema.schema?.properties;
+  assert.equal(properties?.customInputPresets?.type, 'array');
+  assert.ok(properties?.customInputPresets?.items?.properties?.id);
+  assert.ok(properties?.devices?.items?.properties?.inputs?.items?.properties?.customPresetId);
 });
 
 test('custom UI element IDs are unique', async () => {

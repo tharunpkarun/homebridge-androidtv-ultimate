@@ -19,6 +19,9 @@ interface InputEditorHelpers {
   commandSummary(input: Record<string, unknown>): string;
   createCommandDraft(input: Record<string, unknown>): CommandDraft;
   draftHasCommandValue(draft: CommandDraft): boolean;
+  inputMatchesPreset(input: Record<string, unknown>, preset: Record<string, unknown>): boolean;
+  personalPresetConfig(preset: Record<string, unknown>): Record<string, unknown>;
+  personalPresetDefinition(input: Record<string, unknown>, id: string): Record<string, unknown>;
   serializeCommand(input: Record<string, unknown>, draft: CommandDraft): Record<string, unknown>;
   validateCommandDraft(draft: CommandDraft): string | undefined;
 }
@@ -85,4 +88,32 @@ test('guided input editor validates the selected command type', async () => {
   packageDraft.keyCodeValue = '243';
   assert.equal(helpers.validateCommandDraft(packageDraft), undefined);
   assert.equal(helpers.draftHasCommandValue(packageDraft), true);
+});
+
+test('personal presets omit device identity and create independent input copies', async () => {
+  const helpers = await inputEditorHelpers();
+  const preset = helpers.personalPresetDefinition({
+    name: '  Prime Video  ',
+    type: 'application',
+    uri: '  com.amazon.amazonvideo.livingroom  ',
+    packageName: ' com.amazon.amazonvideo.livingroom ',
+    identifier: 7,
+    presetId: 'prime-video',
+    customPresetId: 'old-personal-preset',
+  }, 'personal-prime-video');
+  assert.deepEqual(JSON.parse(JSON.stringify(preset)), {
+    id: 'personal-prime-video',
+    name: 'Prime Video',
+    type: 'application',
+    uri: 'com.amazon.amazonvideo.livingroom',
+    packageName: 'com.amazon.amazonvideo.livingroom',
+  });
+  const configured = helpers.personalPresetConfig(preset);
+  assert.equal(configured.customPresetId, 'personal-prime-video');
+  assert.equal(configured.identifier, undefined);
+  assert.equal(configured.presetId, undefined);
+  assert.equal(helpers.inputMatchesPreset(configured, preset), true);
+  configured.name = 'Prime Video Bedroom';
+  assert.equal(preset.name, 'Prime Video');
+  assert.equal(helpers.inputMatchesPreset(configured, preset), false);
 });

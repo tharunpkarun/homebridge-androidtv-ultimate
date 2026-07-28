@@ -35,6 +35,32 @@
         "maximum": 3600,
         "default": 60
       },
+      "customInputPresets": {
+        "title": "My Input Presets",
+        "description": "Reusable personal input templates managed by the custom UI. Adding one to a television creates an independent copy.",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["id", "name"],
+          "oneOf": [
+            { "required": ["uri"], "not": { "required": ["keyCode"] } },
+            { "required": ["keyCode"], "not": { "required": ["uri"] } }
+          ],
+          "properties": {
+            "id": { "title": "Stable Preset ID", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+            "name": { "title": "Name", "type": "string", "minLength": 1 },
+            "uri": { "title": "Android TV URI or Package", "type": "string", "minLength": 1 },
+            "type": {
+              "title": "HomeKit Input Type",
+              "type": "string",
+              "default": "application",
+              "enum": ["application", "home", "tuner", "hdmi", "composite", "svideo", "component", "dvi", "airplay", "usb", "other"]
+            },
+            "keyCode": { "title": "Android Key Code", "type": "integer", "minimum": 0, "maximum": 1000 },
+            "packageName": { "title": "Active Android Package", "type": "string" }
+          }
+        }
+      },
       "devices": {
         "title": "Televisions",
         "type": "array",
@@ -181,6 +207,11 @@
                   "presetId": {
                     "title": "Input Catalog Preset",
                     "description": "Optional catalog identity used to show local edits and restore catalog defaults. Saved inputs are never updated automatically.",
+                    "type": "string"
+                  },
+                  "customPresetId": {
+                    "title": "Personal Input Preset",
+                    "description": "Optional personal preset identity used to show local edits and manually reapply saved defaults.",
                     "type": "string"
                   },
                   "uri": { "title": "Android TV URI or Package", "type": "string" },

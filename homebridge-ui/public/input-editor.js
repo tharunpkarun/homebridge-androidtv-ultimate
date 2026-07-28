@@ -100,6 +100,41 @@
     return `${commandModeLabel(mode)}${value ? ` · ${value}` : ''}`
   }
 
+  function inputMatchesPreset(input = {}, preset = {}) {
+    return clean(input.name) === clean(preset.name)
+      && clean(input.type || 'application') === clean(preset.type || 'application')
+      && clean(input.uri) === clean(preset.uri)
+      && clean(input.packageName) === clean(preset.packageName)
+      && (input.keyCode ?? null) === (preset.keyCode ?? null)
+  }
+
+  function personalPresetDefinition(input = {}, id) {
+    const preset = {
+      id: clean(id),
+      name: clean(input.name),
+      type: clean(input.type) || 'application',
+    }
+    const uri = clean(input.uri)
+    const packageName = clean(input.packageName)
+    if (uri) preset.uri = uri
+    if (input.keyCode !== undefined && input.keyCode !== null && input.keyCode !== '') {
+      preset.keyCode = Number(input.keyCode)
+    }
+    if (packageName) preset.packageName = packageName
+    return preset
+  }
+
+  function personalPresetConfig(preset = {}) {
+    return {
+      customPresetId: preset.id,
+      name: preset.name,
+      type: preset.type || 'application',
+      uri: preset.uri,
+      packageName: preset.packageName,
+      keyCode: preset.keyCode,
+    }
+  }
+
   return {
     COMMAND_MODES,
     classifyCommand,
@@ -108,7 +143,10 @@
     createCommandDraft,
     draftHasCommandValue,
     hasUriScheme,
+    inputMatchesPreset,
     isAndroidPackage,
+    personalPresetConfig,
+    personalPresetDefinition,
     serializeCommand,
     validateCommandDraft,
   }
