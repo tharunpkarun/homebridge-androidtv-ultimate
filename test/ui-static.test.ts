@@ -7,6 +7,10 @@ async function customUi(): Promise<string> {
   return readFile(path.join(process.cwd(), 'homebridge-ui', 'public', 'index.html'), 'utf8');
 }
 
+async function uiServer(): Promise<string> {
+  return readFile(path.join(process.cwd(), 'homebridge-ui', 'server.js'), 'utf8');
+}
+
 test('custom UI exposes rich tabs, identity labels, themes, support, and backup controls', async () => {
   const html = await customUi();
   for (const tab of ['dashboard', 'devices', 'settings', 'tools']) {
@@ -54,6 +58,10 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /Android key command/);
   assert.match(html, /serializeCommand/);
   assert.match(html, /validateCommandDraft/);
+  assert.match(html, /Test input/);
+  assert.match(html, /Use detected package/);
+  assert.match(html, /homebridge\.request\('\/inputs\/test'/);
+  assert.match(html, /activeInputTestIndex/);
   assert.match(html, /Suggest a preset/);
   assert.match(html, /loadInputCatalog/);
   assert.match(html, /Edited from catalog/);
@@ -67,6 +75,12 @@ test('custom UI exposes rich tabs, identity labels, themes, support, and backup 
   assert.match(html, /setInterval\(\(\) => \{ if \(!document\.hidden\) void refresh\(false\) \}, 5000\)/);
   assert.match(html, /visibilitychange/);
   assert.doesNotMatch(html, /window\.prompt/);
+});
+
+test('custom UI server exposes direct input testing', async () => {
+  const source = await uiServer();
+  assert.match(source, /onRequest\('\/inputs\/test'/);
+  assert.match(source, /api\.testInput/);
 });
 
 test('configuration schema supports reusable personal input presets', async () => {

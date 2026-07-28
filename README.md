@@ -216,6 +216,8 @@ Opening the editor shows the bundled or last-known-good catalog immediately and 
 
 Every generated row remains editable, and **Create custom input** adds a blank row for any other package, deep link, source, or Android key command. The guided **Command type** selector shows only the field needed for that command and validates it inline. Existing inputs and catalog presets are classified automatically. If you switch command types while editing, the alternative values remain available until the editor closes, but only the selected command is saved.
 
+Use **Test input** on any row to send its current unsaved command directly to the paired device. The device must already be on and reachable; testing never triggers Wake-on-LAN or a CEC wake helper. After sending, the editor watches foreground-app feedback for up to ten seconds. A matching package confirms the app input, while HDMI and other hardware commands may correctly report that the command was sent without package confirmation. If a different package is detected, **Use detected package** copies it into the unsaved row for review—the test never saves configuration or learned mappings automatically.
+
 Catalog choices show whether each preset is an app package or Android key command. Catalog-linked rows show **Edited from catalog** after a local change and offer **Restore catalog defaults**. Refreshing the catalog never rewrites saved inputs automatically; even a removed preset keeps its saved values.
 
 Use **Save to My presets** on a completed custom input to keep it in the plugin configuration and reuse it on other TVs. Personal presets appear in a dedicated **My presets** group above the public catalog and are included in encrypted plugin backups. Adding one to a TV creates an independent copy: updating or deleting the personal preset never silently changes existing TV inputs. A linked row can explicitly **Apply saved preset** or **Update My preset** when its values differ.
@@ -496,6 +498,15 @@ Changing an existing TV from bridged to standalone removes its old bridged tile.
 4. Clear an incorrect detected package in the device editor, restart Homebridge, and launch the input again.
 
 **Expected result:** Apple Home selects the configured input only after the TV reports its foreground package.
+
+### Test input cannot confirm the selected source
+
+1. Keep the paired Android device powered on; direct input testing deliberately does not invoke Wake-on-LAN or a CEC wake helper.
+2. Confirm TCP port `6466` is reachable and use **Test connection** if the input test reports the device offline.
+3. For apps and deep links, compare the reported package and use **Use detected package** when it is the correct foreground app.
+4. For HDMI or another hardware source, visually confirm the switch on the TV; many firmwares do not report a foreground package for physical inputs.
+
+**Expected result:** the row reports whether the command was sent and whether Remote Service v2 confirmed a foreground package, without saving the edited input.
 
 ### Wake-on-LAN does not work
 

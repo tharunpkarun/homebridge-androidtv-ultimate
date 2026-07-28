@@ -155,6 +155,10 @@
   .atvu-input-catalog-status { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin: -5px 0 10px; }
   .atvu-input-catalog-state { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; color: var(--atvu-muted); font-size: .68rem; margin: 5px 0 0; }
   .atvu-input-validation { color: var(--atvu-danger); font-size: .68rem; margin: 5px 0 0; }
+  .atvu-input-test-result { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 7px 0 0; padding: 8px 10px; border-radius: 8px; font-size: .7rem; background: var(--atvu-primary-soft); color: var(--atvu-text); }
+  .atvu-input-test-success { background: var(--atvu-success-soft); color: var(--atvu-success); }
+  .atvu-input-test-warning { background: var(--atvu-warning-soft); color: var(--atvu-text); }
+  .atvu-input-test-error { background: var(--atvu-danger-soft); color: var(--atvu-danger); }
   .atvu-personal-presets { display: grid; gap: 7px; margin: 0 0 10px; }
   .atvu-personal-preset { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--atvu-border); border-radius: 8px; background: var(--atvu-surface-soft); }
   .atvu-personal-preset strong { display: block; font-size: .74rem; }
@@ -421,6 +425,9 @@
     let editorDevice = null
     let editorInputs = []
     let editorInputDrafts = []
+    let inputTestResults = new Map()
+    let activeInputTestIndex = null
+    let inputTestGeneration = 0
     let editorControls = null
     let inputCatalog = { schemaVersion: 1, updatedAt: '', presets: [], source: 'bundled' }
     let inputCatalogLoaded = false
@@ -1123,6 +1130,7 @@
             const identifier = editorInputs[index]?.identifier
             editorInputs[index] = { ...inputEditor.personalPresetConfig(preset), ...(identifier ? { identifier } : {}) }
             editorInputDrafts[index] = inputEditor.createCommandDraft(editorInputs[index])
+            inputTestResults.delete(index)
             renderInputRows()
           }))
           container.append(action('Update My preset', () => { void updatePersonalPreset(index, preset) }))
@@ -1152,6 +1160,7 @@
           const identifier = editorInputs[index]?.identifier
           editorInputs[index] = { ...catalogPresetConfig(preset), ...(identifier ? { identifier } : {}) }
           editorInputDrafts[index] = inputEditor.createCommandDraft(editorInputs[index])
+          inputTestResults.delete(index)
           renderInputRows()
         }))
       } else {
@@ -1186,6 +1195,9 @@
       editorDevice = { ...base }
       editorInputs = (base.inputs || []).map(input => ({ ...input }))
       editorInputDrafts = editorInputs.map(input => inputEditor.createCommandDraft(input))
+      inputTestResults = new Map()
+      activeInputTestIndex = null
+      inputTestGeneration += 1
       editorControls = resolvedEditorControls(base)
       byId('atvuEditorTitle').textContent = base.name ? `Configure ${base.name}` : 'Add device manually'
       setInputValue('atvuEditName', base.name); setInputValue('atvuEditType', base.deviceType || 'television')
@@ -1231,7 +1243,9 @@
           validation.textContent = show ? message || '' : ''
           validation.hidden = !validation.textContent
         }
+        const invalidateInputTest = () => { inputTestResults.delete(index) }
         const syncCommand = () => {
+          invalidateInputTest()
           editorInputs[index] = inputEditor.serializeCommand(editorInputs[index], draft)
           updateCatalogState()
           updateValidation()
@@ -1248,6 +1262,7 @@
         })
         commandMode.value = draft.mode
         commandMode.addEventListener('change', () => {
+          invalidateInputTest()
           draft.mode = commandMode.value
           editorInputs[index] = inputEditor.serializeCommand(editorInputs[index], draft)
           renderInputRows()
@@ -1269,10 +1284,13 @@
           keyCode.addEventListener('input', () => { draft.keyCodeValue = keyCode.value; syncCommand() })
           commandField = inputEditorField('Android key code *', keyCode, 'Use a KeyEvent number for HDMI, tuner, USB, or a firmware-specific source command.')
         }
-        const packageName = element('input', 'atvu-input atvu-mono'); packageName.placeholder = detected ? `Detected: ${detected.packageName}` : 'Android package (optional)'; packageName.value = input.packageName || ''; packageName.addEventListener('input', () => { editorInputs[index].packageName = packageName.value; updateCatalogState() })
+        const packageName = element('input', 'atvu-input atvu-mono'); packageName.placeholder = detected ? `Detected: ${detected.packageName}` : 'Android package (optional)'; packageName.value = input.packageName || ''; packageName.addEventListener('input', () => { invalidateInputTest(); editorInputs[index].packageName = packageName.value; updateCatalogState() })
         const identifier = element('input', 'atvu-input'); identifier.type = 'number'; identifier.min = '1'; identifier.max = '255'; identifier.placeholder = 'ID'; identifier.value = input.identifier || ''; identifier.addEventListener('input', () => { editorInputs[index].identifier = identifier.value ? Number(identifier.value) : undefined })
-        const remove = action('Remove', () => { editorInputs.splice(index, 1); editorInputDrafts.splice(index, 1); renderInputRows() }); remove.classList.add('atvu-button-danger')
+        const remove = action('Remove', () => { editorInputs.splice(index, 1); editorInputDrafts.splice(index, 1); inputTestResults = new Map(); renderInputRows() }); remove.classList.add('atvu-button-danger')
         const actions = element('div', 'atvu-input-row-actions')
+        const testInputButton = action(activeInputTestIndex === index ? 'Testing…' : 'Test input', () => { void testEditorInput(index) }, true)
+        testInputButton.disabled = activeInputTestIndex !== null
+        actions.append(testInputButton)
         if (!input.presetId && !input.customPresetId) actions.append(action('Save to My presets', () => { void saveInputToPersonalPresets(index) }))
         actions.append(remove)
         const packageHelp = draft.mode === COMMAND_MODES.PACKAGE
@@ -1288,8 +1306,26 @@
           inputEditorField('Active Android package', packageName, packageHelp),
           inputEditorField('HomeKit identifier', identifier, 'Optional stable ID from 1 to 255.'),
           actions,
-        ); wrapper.append(row)
+        )
+        if (activeInputTestIndex !== null) {
+          row.querySelectorAll('input, select, button').forEach(control => { control.disabled = true })
+        }
+        wrapper.append(row)
         updateCatalogState(); updateValidation(); wrapper.append(validation, catalogState)
+        const testResult = inputTestResults.get(index)
+        if (testResult) {
+          const result = element('div', `atvu-input-test-result atvu-input-test-${testResult.tone}`)
+          result.append(element('span', '', testResult.message))
+          if (testResult.observedPackage && testResult.observedPackage !== editorInputs[index]?.packageName) {
+            result.append(action('Use detected package', () => {
+              if (!editorInputs[index]) return
+              editorInputs[index].packageName = testResult.observedPackage
+              inputTestResults.set(index, { ...testResult, message: `${testResult.message} Detected package applied to this unsaved input.` })
+              renderInputRows()
+            }))
+          }
+          wrapper.append(result)
+        }
         if (detected) {
           const learned = element('div', 'atvu-learned-map')
           learned.append(element('span', '', `Automatically detected package: ${detected.packageName} · ${formatDate(detected.learnedAt)}`))
@@ -1299,6 +1335,57 @@
         container.append(wrapper)
       })
       homebridge.fixScrollHeight()
+    }
+
+    function inputTestDevice() {
+      if (!editorDevice) throw new Error('Open a configured device before testing an input')
+      const host = byId('atvuEditHost').value.trim()
+      if (!host) throw new Error('Enter the device IP address or hostname before testing')
+      return {
+        ...editorDevice,
+        id: byId('atvuEditId').value.trim() || editorDevice.id,
+        name: byId('atvuEditName').value.trim() || editorDevice.name || host,
+        host,
+        hostname: byId('atvuEditHostname').value.trim() || undefined,
+        remotePort: Number(byId('atvuEditRemotePort').value || 6466),
+        pairingPort: Number(byId('atvuEditPairingPort').value || 6467),
+      }
+    }
+
+    function inputTestMessage(result) {
+      if (result.confirmation === 'matched') return { tone: 'success', message: `Command sent and confirmed by ${result.observedPackage}.` }
+      if (result.confirmation === 'different') return { tone: 'warning', message: `Command sent, but the device reported ${result.observedPackage} instead of ${result.expectedPackage}.` }
+      if (result.confirmation === 'observed') return { tone: 'success', message: `Command sent. The device reported ${result.observedPackage}.` }
+      return { tone: 'warning', message: 'Command sent, but no foreground Android package was reported. This is normal for many HDMI and hardware inputs.' }
+    }
+
+    async function testEditorInput(index) {
+      if (activeInputTestIndex !== null) return
+      const generation = ++inputTestGeneration
+      try {
+        const input = editorInputs[index]
+        const draft = editorInputDrafts[index] || inputEditor.createCommandDraft(input)
+        const commandError = inputEditor.validateCommandDraft(draft)
+        if (commandError) throw new Error(commandError)
+        const serialized = inputEditor.serializeCommand(input, draft)
+        serialized.packageName = serialized.packageName?.trim() || undefined
+        activeInputTestIndex = index
+        inputTestResults.set(index, { tone: 'testing', message: 'Sending the command and watching for foreground-app feedback…' })
+        renderInputRows()
+        const result = await homebridge.request('/inputs/test', { device: inputTestDevice(), input: serialized })
+        if (generation === inputTestGeneration) {
+          inputTestResults.set(index, { ...inputTestMessage(result), observedPackage: result.observedPackage })
+        }
+      } catch (error) {
+        if (generation === inputTestGeneration) {
+          inputTestResults.set(index, { tone: 'error', message: errorMessage(error) })
+        }
+      } finally {
+        if (generation === inputTestGeneration) {
+          activeInputTestIndex = null
+          renderInputRows()
+        }
+      }
     }
 
     async function clearLearnedMapping(mapping) {
@@ -1550,7 +1637,7 @@
     byId('atvuPairComplete').addEventListener('click', completePairing); byId('atvuPairCancel').addEventListener('click', cancelPairing)
     byId('atvuCode').addEventListener('keydown', event => { if (event.key === 'Enter') completePairing() })
     byId('atvuSaveSettings').addEventListener('click', () => saveGeneralSettings().catch(error => homebridge.toast.error(errorMessage(error), 'Could not save settings')))
-    byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null; editorControls = null; editorInputs = []; editorInputDrafts = [] })
+    byId('atvuEditorCancel').addEventListener('click', () => { byId('atvuDeviceEditor').hidden = true; byId('atvuNoEditor').hidden = false; editorDevice = null; editorControls = null; editorInputs = []; editorInputDrafts = []; inputTestResults = new Map(); activeInputTestIndex = null; inputTestGeneration += 1 })
     byId('atvuApplyControlDefaults').addEventListener('click', applyProfileControlDefaults)
     byId('atvuEditType').addEventListener('change', applyProfileControlDefaults)
     byId('atvuCecWakeHelper').addEventListener('change', syncCecWakeFields)

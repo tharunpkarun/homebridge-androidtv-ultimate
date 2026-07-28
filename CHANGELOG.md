@@ -4,6 +4,7 @@ All notable changes are documented here.
 
 ## Unreleased
 
+- Add per-row testing for unsaved app packages, deep links, and Android key commands, with foreground-package observation and an explicit action to apply a detected package to the editor.
 - Add configurable CEC wake through another paired Android device, such as a set-top box, with parallel Wake-on-LAN, adjustable Power-to-Home timing, target confirmation, and optional HomeKit No Response reporting.
 - Keep CEC helper activation wake-only, prevent recursive helper chains, and retain the target's confirmed power state until its own Remote Service connection returns.
 

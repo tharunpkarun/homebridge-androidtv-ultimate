@@ -3,12 +3,13 @@ import { readFile } from 'node:fs/promises';
 import { isIP } from 'node:net';
 import path from 'node:path';
 import tls from 'node:tls';
-import type { AndroidTvDeviceConfig, AndroidTvPlatformConfig } from './types';
+import type { AndroidTvDeviceConfig, AndroidTvPlatformConfig, AppInputConfig, DeviceSnapshot } from './types';
 import { DiscoveryCache } from './network/discovery-cache';
 import { frameMessage, FrameDecoder } from './protocol/framing';
 import { PairingClient } from './protocol/pairing-client';
 import { REMOTE_FEATURE_MASK } from './settings';
 import {
+  AndroidKeyCode,
   decodeRemoteMessage,
   encodeConfigure,
   encodePingResponse,
@@ -19,6 +20,13 @@ import { createEncryptedBackup, restoreEncryptedBackup } from './storage/backup'
 import { previewLegacyMigration } from './storage/migration';
 import { InputMappingStore } from './storage/input-mapping-store';
 import { InputCatalogService, type InputCatalogResult } from './input/input-catalog';
+import { isAndroidPackageName } from './input/input-mapping';
+import {
+  inputTestResult,
+  validateInputTestCommand,
+  type InputTestResult,
+} from './input/input-test';
+import { RemoteServiceV2Transport } from './protocol/v2-transport';
 
 interface PairingSession {
   client: PairingClient;
@@ -272,6 +280,94 @@ export async function testConnection(storagePath: string, device: AndroidTvDevic
       reject(error);
     });
   });
+}
+
+function waitForTransportState(
+  transport: RemoteServiceV2Transport,
+  predicate: (snapshot: Readonly<DeviceSnapshot>) => boolean,
+  timeoutMs: number,
+): Promise<Readonly<DeviceSnapshot> | undefined> {
+  if (predicate(transport.snapshot)) {
+    return Promise.resolve(transport.snapshot);
+  }
+  return new Promise(resolve => {
+    const finish = (snapshot?: Readonly<DeviceSnapshot>): void => {
+      clearTimeout(timer);
+      transport.off('state', onState);
+      resolve(snapshot);
+    };
+    const onState = (snapshot: Readonly<DeviceSnapshot>): void => {
+      if (predicate(snapshot)) {
+        finish(snapshot);
+      }
+    };
+    const timer = setTimeout(() => finish(), timeoutMs);
+    transport.on('state', onState);
+  });
+}
+
+export async function testInput(
+  storagePath: string,
+  device: AndroidTvDeviceConfig,
+  input: AppInputConfig,
+  observationWindowMs = 10_000,
+): Promise<InputTestResult> {
+  if (!device?.id || !device.host) {
+    throw new Error('A configured device ID and host are required to test an input');
+  }
+  const command = validateInputTestCommand(input);
+  const credentials = await new CredentialStore(storagePath).get(device.id);
+  if (!credentials) {
+    throw new Error('This device has not been paired');
+  }
+  const discovery = new DiscoveryCache(storagePath);
+  await discovery.load();
+  const resolved = await discovery.resolveDevice(device);
+  const transport = new RemoteServiceV2Transport(resolved, credentials, 0);
+  transport.on('error', () => undefined);
+  transport.start();
+  try {
+    const connected = await waitForTransportState(
+      transport,
+      snapshot => snapshot.connection === 'online',
+      10_000,
+    );
+    if (!connected) {
+      throw new Error('The device is offline or Remote Service v2 did not become ready');
+    }
+    if (!connected.power) {
+      throw new Error('The device is in standby; turn it on before testing an input');
+    }
+
+    const initialPackage = transport.snapshot.currentApp;
+    if (command.kind === 'keyCode') {
+      await transport.sendKey(command.keyCode as AndroidKeyCode);
+    } else {
+      await transport.launchApp(command.uri);
+    }
+
+    if (command.expectedPackage && initialPackage === command.expectedPackage) {
+      return inputTestResult(command, initialPackage);
+    }
+    let observedPackage: string | undefined;
+    await waitForTransportState(transport, snapshot => {
+      const currentPackage = snapshot.currentApp;
+      if (!currentPackage || !isAndroidPackageName(currentPackage)) {
+        return false;
+      }
+      if (command.expectedPackage && currentPackage === command.expectedPackage) {
+        observedPackage = currentPackage;
+        return true;
+      }
+      if (currentPackage !== initialPackage) {
+        observedPackage = currentPackage;
+      }
+      return false;
+    }, Math.max(0, Math.min(30_000, observationWindowMs)));
+    return inputTestResult(command, observedPackage);
+  } finally {
+    transport.stop();
+  }
 }
 
 export async function migrationPreview(storagePath: string): ReturnType<typeof previewLegacyMigration> {

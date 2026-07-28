@@ -36,6 +36,11 @@
         payload.inputIdentifier,
       )))
       this.onRequest('/test', payload => this.wrap(() => api.testConnection(this.homebridgeStoragePath, payload.device)))
+      this.onRequest('/inputs/test', payload => this.wrap(() => api.testInput(
+        this.homebridgeStoragePath,
+        payload.device,
+        payload.input,
+      )))
       this.onRequest('/migration/preview', () => this.wrap(() => api.migrationPreview(this.homebridgeStoragePath)))
       this.onRequest('/migration/apply', () => this.wrap(() => api.applyMigration(this.homebridgeStoragePath)))
       this.onRequest('/diagnostics', payload => this.wrap(() => api.diagnostics(
