@@ -2,7 +2,7 @@
 
 All notable changes are documented here.
 
-## Unreleased
+## 0.5.0 - 2026-07-29
 
 - Replace simultaneous package, deep-link, and key-code fields with a guided command-type editor that classifies existing inputs, validates commands inline, and preserves unsaved alternatives while switching modes.
 - Add command summaries to catalog choices without changing the catalog or saved configuration schemas.
