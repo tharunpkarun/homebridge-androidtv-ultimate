@@ -21,9 +21,6 @@
     "homebridge": "^1.8.0 || ^2.0.0",
     "node": "^20.0.0 || ^22.0.0 || ^24.0.0"
   },
-  "peerDependencies": {
-    "homebridge": "^1.8.0 || ^2.0.0"
-  },
   "main": "dist/index.js",
   "files": [
     "dist",
@@ -47,6 +44,7 @@
   },
   "keywords": [
     "homebridge-plugin",
+    "supports-hap",
     "homekit",
     "android-tv",
     "google-tv",
