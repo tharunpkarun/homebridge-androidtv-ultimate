@@ -8,14 +8,17 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write
+permissions: {}
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     environment: npm
+    outputs:
+      package_version: ${{ steps.package.outputs.version }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -66,10 +69,20 @@ jobs:
       - name: Publish to npm
         if: steps.npm.outputs.published != 'true'
         run: npm publish --provenance --access public
+
+  release:
+    needs: publish
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+          PACKAGE_VERSION: ${{ needs.publish.outputs.package_version }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "GitHub release $GITHUB_REF_NAME already exists."
