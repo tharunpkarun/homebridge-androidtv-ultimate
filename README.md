@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/tharunpkarun/homebridge-androidtv-ultimate/main/docs/images/androidtv-ultimate-icon.png" width="128" height="128" alt="AndroidTV Ultimate icon">
+</p>
+
 <h1 align="center">AndroidTV Ultimate</h1>
 
 <p align="center">
