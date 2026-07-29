@@ -2,6 +2,13 @@
 
 All notable changes are documented here.
 
+## 0.5.2 - 2026-07-30
+
+- Add original AndroidTV Ultimate branding in repository and verification-ready icon sizes.
+- Declare HAP transport support without installing Homebridge as a plugin dependency.
+- Catch and log platform startup failures instead of allowing an unhandled rejection.
+- Make tag releases retry-safe and create matching GitHub Releases from changelog notes.
+
 ## 0.5.1 - 2026-07-29
 
 - Add per-row testing for unsaved app packages, deep links, and Android key commands, with foreground-package observation and an explicit action to apply a detected package to the editor.
