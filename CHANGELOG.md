@@ -2,7 +2,7 @@
 
 All notable changes are documented here.
 
-## 0.5.2 - 2026-07-30
+## 0.5.2 - Unreleased
 
 - Add original AndroidTV Ultimate branding in repository and verification-ready icon sizes.
 - Declare HAP transport support without installing Homebridge as a plugin dependency.

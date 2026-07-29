@@ -43,7 +43,7 @@ jobs:
         run: |
           if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
             published_sha=$(npm view "$PACKAGE_NAME@$PACKAGE_VERSION" gitHead 2>/dev/null || true)
-            if [[ -n "$published_sha" && "$published_sha" != "$GITHUB_SHA" ]]; then
+            if [[ -z "$published_sha" || "$published_sha" != "$GITHUB_SHA" ]]; then
               echo "$PACKAGE_NAME@$PACKAGE_VERSION was published from $published_sha, not $GITHUB_SHA." >&2
               exit 1
             fi
