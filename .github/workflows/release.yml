@@ -4,6 +4,10 @@ on:
   push:
     tags: ['v*']
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   id-token: write
@@ -14,6 +18,8 @@ jobs:
     environment: npm
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -41,15 +47,21 @@ jobs:
           PACKAGE_NAME: ${{ steps.package.outputs.name }}
           PACKAGE_VERSION: ${{ steps.package.outputs.version }}
         run: |
-          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+          lookup_output="$RUNNER_TEMP/npm-view.json"
+          lookup_error="$RUNNER_TEMP/npm-view-error.log"
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version --json > "$lookup_output" 2> "$lookup_error"; then
             published_sha=$(npm view "$PACKAGE_NAME@$PACKAGE_VERSION" gitHead 2>/dev/null || true)
             if [[ -z "$published_sha" || "$published_sha" != "$GITHUB_SHA" ]]; then
               echo "$PACKAGE_NAME@$PACKAGE_VERSION was published from $published_sha, not $GITHUB_SHA." >&2
               exit 1
             fi
             echo "published=true" >> "$GITHUB_OUTPUT"
-          else
+          elif grep -qE '(^|[[:space:]])E404([[:space:]]|$)' "$lookup_error"; then
             echo "published=false" >> "$GITHUB_OUTPUT"
+          else
+            cat "$lookup_error" >&2
+            echo "Could not determine whether $PACKAGE_NAME@$PACKAGE_VERSION is published." >&2
+            exit 1
           fi
       - name: Publish to npm
         if: steps.npm.outputs.published != 'true'
