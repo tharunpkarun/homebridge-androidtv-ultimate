@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+early_access: false
+enable_free_tier: true
+tone_instructions: >-
+  Be concise, constructive, and specific. Prioritize correctness, security,
+  backwards compatibility, and observable behavior over style preferences.
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  changed_files_summary: true
+  estimate_code_review_effort: true
+  review_status: true
+  commit_status: true
+  fail_commit_status: false
+  review_details: true
+  collapse_walkthrough: true
+  poem: false
+  in_progress_fortune: false
+  sequence_diagrams: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    base_branches:
+      - "main"
+
+  path_filters:
+    - "!dist/**"
+    - "!.test-dist/**"
+    - "!node_modules/**"
+    - "!coverage/**"
+    - "!package-lock.json"
+    - "!*.tgz"
+    - "!docs/images/**"
+    - "!**/*.min.js"
+
+  path_instructions:
+    - path: "src/protocol/**"
+      instructions: |
+        Treat this as a wire-compatibility and authentication boundary.
+        Verify protobuf field numbers and wire types against Remote Service v2,
+        preserve the server-led handshake, reject malformed frames safely, and
+        avoid logging pairing codes, certificates, private keys, or secrets.
+        Require focused regression tests for message and framing changes.
+
+    - path: "src/accessory/**"
+      instructions: |
+        Review HomeKit behavior for stable accessory UUIDs, service subtypes,
+        primary services, bridged versus standalone exposure, and per-device
+        state isolation. Existing users must not receive duplicate accessories
+        or lose HomeKit identity without an explicit migration and documentation.
+
+    - path: "src/network/**"
+      instructions: |
+        Check mDNS identity matching, offline cache retention, IPv4/IPv6 behavior,
+        DHCP endpoint recovery, bounded timeouts, and Wake-on-LAN validation.
+        Network failures must degrade safely without reporting an offline device
+        as powered on.
+
+    - path: "src/storage/**"
+      instructions: |
+        Treat persisted credentials and backups as a security boundary. Require
+        owner-only permissions, atomic writes, secret redaction, backwards-compatible
+        reads, explicit format validation, and tests for corrupt or older data.
+        Never allow pairing material into config.json, logs, or diagnostics.
+
+    - path: "src/automation/**"
+      instructions: |
+        Check cancellation, time and step bounds, per-device mutual exclusion,
+        restart behavior, and failure cleanup. Timers must not retry an expired
+        shutdown later, and macro failures must always release reservations.
+
+    - path: "homebridge-ui/**"
+      instructions: |
+        Keep the custom UI compatible with Homebridge Plugin UI utilities and
+        dependency-free browser JavaScript. Verify client route names match the
+        UI server, element IDs are unique, destructive actions require confirmation,
+        configuration is not saved implicitly, and credentials are never rendered.
+
+    - path: "catalog/**"
+      instructions: |
+        Require the matching schema validator, stable unique IDs, a current
+        updatedAt value, bounded content, and exactly one command where applicable.
+        Device reports must not contain local addresses, MACs, serial numbers,
+        account data, pairing material, or unconfirmed claims marked as confirmed.
+
+    - path: "config.schema.json"
+      instructions: |
+        Keep the schema aligned with TypeScript configuration types and the custom
+        UI. New options need safe defaults, useful bounds, backwards compatibility,
+        documentation, and tests.
+
+    - path: "test/**"
+      instructions: |
+        Prefer observable behavior at public boundaries. Flag tests that copy the
+        production algorithm, rely only on source-text matching for runtime claims,
+        or mock away the behavior they claim to verify. Cover failure and recovery
+        paths for protocol, persistence, network, and automation changes.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Review workflow changes as trusted automation. Keep permissions least
+        privileged, pin or use trusted actions, never execute pull-request code
+        with write tokens or secrets, and preserve the Node.js support matrix.
+
+    - path: "package.json"
+      instructions: |
+        Check Homebridge and Node.js compatibility, packaged files, lifecycle
+        scripts, and release safety. A version change must match CHANGELOG.md and
+        must not weaken prepublish validation.
+
+    - path: "README.md"
+      instructions: |
+        Verify user-facing behavior, configuration examples, security claims,
+        links, supported scope, and upgrade implications against the implementation.
+
+chat:
+  auto_reply: true
+  art: false
+  allow_non_org_members: true
+
+issue_enrichment:
+  auto_enrich:
+    enabled: false
+  planning:
+    enabled: false
