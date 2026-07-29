@@ -5,7 +5,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -22,4 +22,58 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: npm run validate:catalog
-      - run: npm publish --provenance --access public
+      - name: Read package metadata
+        id: package
+        run: |
+          echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Verify tag and package version
+        env:
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if [[ "$GITHUB_REF_NAME" != "v$PACKAGE_VERSION" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match package version $PACKAGE_VERSION." >&2
+            exit 1
+          fi
+      - name: Check npm publication
+        id: npm
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            published_sha=$(npm view "$PACKAGE_NAME@$PACKAGE_VERSION" gitHead 2>/dev/null || true)
+            if [[ -n "$published_sha" && "$published_sha" != "$GITHUB_SHA" ]]; then
+              echo "$PACKAGE_NAME@$PACKAGE_VERSION was published from $published_sha, not $GITHUB_SHA." >&2
+              exit 1
+            fi
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish to npm
+        if: steps.npm.outputs.published != 'true'
+        run: npm publish --provenance --access public
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "GitHub release $GITHUB_REF_NAME already exists."
+            exit 0
+          fi
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          awk -v heading="## $PACKAGE_VERSION - " '
+            index($0, heading) == 1 { capture = 1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > "$notes_file"
+          if [[ ! -s "$notes_file" ]]; then
+            echo "No changelog notes found for $PACKAGE_VERSION." >&2
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "AndroidTV Ultimate v$PACKAGE_VERSION" \
+            --notes-file "$notes_file"
