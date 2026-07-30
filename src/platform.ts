@@ -40,7 +40,11 @@ export class AndroidTvPlatform implements DynamicPlatformPlugin {
     this.discoveryCache = new DiscoveryCache(api.user.storagePath());
     this.inputMappingStore = new InputMappingStore(api.user.storagePath());
 
-    api.on('didFinishLaunching', () => void this.launch());
+    api.on('didFinishLaunching', () => {
+      void this.launch().catch(error => {
+        this.log.error('Platform startup failed: %s', String(error));
+      });
+    });
     api.on('shutdown', () => {
       this.discoveryCache.stop();
       for (const handler of this.handlers.values()) {

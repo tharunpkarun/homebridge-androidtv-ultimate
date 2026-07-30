@@ -1,7 +1,7 @@
 {
   "name": "homebridge-androidtv-ultimate",
   "displayName": "AndroidTV Ultimate",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Local-first Android TV control for Homebridge using the Remote Service v2 pairing protocol.",
   "license": "MIT",
   "author": {
@@ -20,9 +20,6 @@
   "engines": {
     "homebridge": "^1.8.0 || ^2.0.0",
     "node": "^20.0.0 || ^22.0.0 || ^24.0.0"
-  },
-  "peerDependencies": {
-    "homebridge": "^1.8.0 || ^2.0.0"
   },
   "main": "dist/index.js",
   "files": [
@@ -47,6 +44,7 @@
   },
   "keywords": [
     "homebridge-plugin",
+    "supports-hap",
     "homekit",
     "android-tv",
     "google-tv",

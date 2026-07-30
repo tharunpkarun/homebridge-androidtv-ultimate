@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">AndroidTV Ultimate</title>
+  <desc id="description">A television and remote-control signal mark in purple, blue, and white.</desc>
+  <defs>
+    <linearGradient id="background" x1="132" y1="92" x2="892" y2="932" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#192230"/>
+      <stop offset="1" stop-color="#0F141F"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="250" y1="252" x2="790" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A986FF"/>
+      <stop offset="0.52" stop-color="#6D3BD1"/>
+      <stop offset="1" stop-color="#3E65D9"/>
+    </linearGradient>
+    <linearGradient id="remote" x1="650" y1="494" x2="824" y2="844" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8ECF5"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="26" stdDeviation="26" flood-color="#05070B" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="210" fill="url(#background)"/>
+  <circle cx="180" cy="166" r="104" fill="#6D3BD1" opacity="0.12"/>
+  <circle cx="870" cy="844" r="148" fill="#3E65D9" opacity="0.12"/>
+
+  <g filter="url(#shadow)">
+    <rect x="142" y="206" width="740" height="486" rx="92" fill="#F4F7FB"/>
+    <rect x="174" y="238" width="676" height="422" rx="64" fill="url(#screen)"/>
+    <path d="M223 559C346 422 470 520 582 383C656 292 732 308 801 273V596C801 614 786 628 768 628H207C189 628 174 614 174 596V598C188 586 204 573 223 559Z" fill="#FFFFFF" opacity="0.1"/>
+    <path d="M420 692H604L638 765H386L420 692Z" fill="#F4F7FB"/>
+    <rect x="338" y="750" width="348" height="52" rx="26" fill="#F4F7FB"/>
+  </g>
+
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round">
+    <path d="M694 456C744 427 805 430 852 463" stroke-width="28" opacity="0.96"/>
+    <path d="M721 400C793 361 878 367 941 419" stroke-width="26" opacity="0.7"/>
+  </g>
+
+  <g transform="rotate(-12 744 688)" filter="url(#shadow)">
+    <rect x="656" y="484" width="176" height="372" rx="84" fill="url(#remote)"/>
+    <circle cx="744" cy="573" r="34" fill="#6D3BD1"/>
+    <circle cx="744" cy="685" r="58" fill="#192230"/>
+    <circle cx="744" cy="685" r="18" fill="#A986FF"/>
+    <rect x="716" y="775" width="56" height="16" rx="8" fill="#667085"/>
+  </g>
+</svg>
